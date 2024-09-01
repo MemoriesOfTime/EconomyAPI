@@ -4,6 +4,9 @@ author: onebone
 api: ["1.0.13"]
 main: me.onebone.economyapi.EconomyAPI
 
+softdepend:
+  - "EasySQLX"
+
 permissions:
   economyapi:
     children:

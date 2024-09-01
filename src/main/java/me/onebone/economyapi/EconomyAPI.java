@@ -37,6 +37,7 @@ import me.onebone.economyapi.event.money.AddMoneyEvent;
 import me.onebone.economyapi.event.money.ReduceMoneyEvent;
 import me.onebone.economyapi.event.money.SetMoneyEvent;
 import me.onebone.economyapi.provider.Provider;
+import me.onebone.economyapi.provider.SQLiteProvider;
 import me.onebone.economyapi.provider.YamlProvider;
 import me.onebone.economyapi.task.AutoSaveTask;
 
@@ -382,6 +383,11 @@ public class EconomyAPI extends PluginBase implements Listener {
         initServerLangCode();
 
         this.addProvider("yaml", YamlProvider.class);
+        if (this.getServer().getPluginManager().getPlugin("EasySQLX") != null) {
+            this.addProvider("sqlite", SQLiteProvider.class);
+        } else {
+            this.getLogger().warning("EasySQLX is not found, SQLite provider will not be available.");
+        }
     }
 
     public void onEnable() {
