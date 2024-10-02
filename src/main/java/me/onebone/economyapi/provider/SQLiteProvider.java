@@ -54,8 +54,18 @@ public class SQLiteProvider implements Provider {
     }
 
     @Override
+    public boolean accountExists(String currencyName, String id) {
+        return false;
+    }
+
+    @Override
     public boolean accountExists(String id) {
         return this.sqLiteHelper.hasData(TABLE_NAME, COLUMN_PLAYER, id);
+    }
+
+    @Override
+    public boolean removeAccount(String currencyName, String id) {
+        return false;
     }
 
     @Override
@@ -68,12 +78,22 @@ public class SQLiteProvider implements Provider {
     }
 
     @Override
+    public boolean createAccount(String currencyName, String id, double defaultMoney) {
+        return false;
+    }
+
+    @Override
     public boolean createAccount(String id, double defaultMoney) {
         if (!this.accountExists(id)) {
             MoneyData values = new MoneyData(id, defaultMoney);
             this.sqLiteHelper.add(TABLE_NAME, values);
             return true;
         }
+        return false;
+    }
+
+    @Override
+    public boolean setMoney(String currencyName, String id, double amount) {
         return false;
     }
 
@@ -89,11 +109,21 @@ public class SQLiteProvider implements Provider {
     }
 
     @Override
+    public boolean addMoney(String currencyName, String id, double amount) {
+        return false;
+    }
+
+    @Override
     public boolean addMoney(String id, double amount) {
         if (this.accountExists(id)) {
             this.setMoney(id, this.getMoney(id) + amount);
             return true;
         }
+        return false;
+    }
+
+    @Override
+    public boolean reduceMoney(String currencyName, String id, double amount) {
         return false;
     }
 
@@ -107,11 +137,21 @@ public class SQLiteProvider implements Provider {
     }
 
     @Override
+    public double getMoney(String currencyName, String id) {
+        return 0;
+    }
+
+    @Override
     public double getMoney(String id) {
         if (this.accountExists(id)) {
             return this.getMoneyData(id).getMoney();
         }
         return -1;
+    }
+
+    @Override
+    public LinkedHashMap<String, Double> getAll(String currencyName) {
+        return null;
     }
 
     @Override

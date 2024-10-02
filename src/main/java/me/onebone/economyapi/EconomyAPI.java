@@ -39,6 +39,7 @@ import me.onebone.economyapi.provider.SQLiteProvider;
 import me.onebone.economyapi.provider.YamlProvider;
 import me.onebone.economyapi.task.AutoSaveTask;
 
+import java.lang.reflect.InvocationTargetException;
 import java.text.DecimalFormat;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -348,25 +349,15 @@ public class EconomyAPI extends PluginBase implements Listener {
     }
 
     public String getMonetaryUnit() {
-        return this.getConfig().get("money.monetary-unit", "$");
+        return MAIN_CONFIG.getDefaultCurrency().getMonetaryUnit();
     }
 
     public double getDefaultMoney() {
-        if (this.getConfig().isDouble("money.default")) {
-            return this.getConfig().get("money.default", 1000D);
-        } else if (this.getConfig().isLong("money.default")) {
-            return this.getConfig().getLong("money.default", 1000);
-        }
-        return 1000;
+        return MAIN_CONFIG.getDefaultCurrency().getDefaultAmount();
     }
 
     public double getMaxMoney() {
-        if (this.getConfig().isDouble("money.max")) {
-            return this.getConfig().get("money.max", 9999999999D);
-        } else if (this.getConfig().isLong("money.max")) {
-            return this.getConfig().getLong("money.max", 9999999999L);
-        }
-        return 9999999999D;
+        return MAIN_CONFIG.getDefaultCurrency().getMaxAmount();
     }
 
     public void saveAll() {
@@ -398,7 +389,7 @@ public class EconomyAPI extends PluginBase implements Listener {
 
         if (success) {
             this.getServer().getPluginManager().registerEvents(this, this);
-            this.getServer().getScheduler().scheduleDelayedRepeatingTask(new AutoSaveTask(this), this.getConfig().get("data.auto-save-interval", 10) * 1200, this.getConfig().get("data.auto-save-interval", 10) * 1200);
+            this.getServer().getScheduler().scheduleDelayedRepeatingTask(new AutoSaveTask(this), MAIN_CONFIG.getAutoSaveInterval() * 1200, MAIN_CONFIG.getAutoSaveInterval() * 1200);
         }
     }
 
@@ -427,7 +418,7 @@ public class EconomyAPI extends PluginBase implements Listener {
     }
 
     private boolean selectProvider() {
-        Class<?> providerClass = this.providerClass.get((this.getConfig().get("data.provider", "yaml")).toLowerCase());
+        Class<?> providerClass = this.providerClass.get(MAIN_CONFIG.getProvider());
 
         if (providerClass == null) {
             this.getLogger().critical("Invalid data provider was given.");
@@ -435,11 +426,13 @@ public class EconomyAPI extends PluginBase implements Listener {
         }
 
         try {
-            this.provider = (Provider) providerClass.newInstance();
+            this.provider = (Provider) providerClass.getDeclaredConstructor().newInstance();
             this.provider.init(this.getDataFolder());
         } catch (InstantiationException | IllegalAccessException e) {
             this.getLogger().critical("Invalid data provider was given.");
             return false;
+        } catch (InvocationTargetException | NoSuchMethodException e) {
+            throw new RuntimeException(e);
         }
 
         this.provider.open();

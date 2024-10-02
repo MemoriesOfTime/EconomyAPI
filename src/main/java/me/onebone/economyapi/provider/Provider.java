@@ -31,19 +31,35 @@ public interface Provider {
 
     void close();
 
+    boolean accountExists(String currencyName, String id);
+
     boolean accountExists(String id);
+
+    boolean removeAccount(String currencyName, String id);
 
     boolean removeAccount(String id);
 
+    boolean createAccount(String currencyName, String id, double defaultMoney);
+
     boolean createAccount(String id, double defaultMoney);
+
+    boolean setMoney(String currencyName, String id, double amount);
 
     boolean setMoney(String id, double amount);
 
+    boolean addMoney(String currencyName, String id, double amount);
+
     boolean addMoney(String id, double amount);
+
+    boolean reduceMoney(String currencyName, String id, double amount);
 
     boolean reduceMoney(String id, double amount);
 
+    double getMoney(String currencyName, String id);
+
     double getMoney(String id);
+
+    LinkedHashMap<String, Double> getAll(String currencyName);
 
     LinkedHashMap<String, Double> getAll();
 
