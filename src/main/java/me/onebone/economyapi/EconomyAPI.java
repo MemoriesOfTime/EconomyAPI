@@ -21,7 +21,6 @@ package me.onebone.economyapi;
 import cn.nukkit.IPlayer;
 import cn.nukkit.Player;
 import cn.nukkit.Server;
-import cn.nukkit.command.CommandSender;
 import cn.nukkit.event.EventHandler;
 import cn.nukkit.event.Listener;
 import cn.nukkit.event.player.PlayerJoinEvent;
@@ -29,9 +28,8 @@ import cn.nukkit.lang.LangCode;
 import cn.nukkit.lang.PluginI18n;
 import cn.nukkit.lang.PluginI18nManager;
 import cn.nukkit.plugin.PluginBase;
-import cn.nukkit.utils.TextFormat;
-import cn.nukkit.utils.Utils;
 import me.onebone.economyapi.command.*;
+import me.onebone.economyapi.config.EconomyAPIConfig;
 import me.onebone.economyapi.event.account.CreateAccountEvent;
 import me.onebone.economyapi.event.money.AddMoneyEvent;
 import me.onebone.economyapi.event.money.ReduceMoneyEvent;
@@ -53,6 +51,7 @@ public class EconomyAPI extends PluginBase implements Listener {
     public static final int RET_NOT_FOUND = -1;
     public static final int RET_INVALID = 0;
     public static final int RET_SUCCESS = 1;
+    public static EconomyAPIConfig MAIN_CONFIG;
     public static final DecimalFormat MONEY_FORMAT = new DecimalFormat();
     private static EconomyAPI instance;
     private static PluginI18n i18n;
@@ -376,6 +375,7 @@ public class EconomyAPI extends PluginBase implements Listener {
         }
     }
 
+    @Override
     public void onLoad() {
         instance = this;
         // 注册插件的 i18n
@@ -390,8 +390,9 @@ public class EconomyAPI extends PluginBase implements Listener {
         }
     }
 
+    @Override
     public void onEnable() {
-        this.saveDefaultConfig();
+        MAIN_CONFIG = new EconomyAPIConfig();
 
         boolean success = this.initialize();
 
@@ -406,6 +407,7 @@ public class EconomyAPI extends PluginBase implements Listener {
         this.createAccount(event.getPlayer());
     }
 
+    @Override
     public void onDisable() {
         this.saveAll();
     }

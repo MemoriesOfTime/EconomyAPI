@@ -1,7 +1,21 @@
-money:
-  monetary-unit: "$"
-  default: 1000.0
-  max: 9999999999.0
+version: 2
+currencies:
+  USD:
+    monetary-unit: "$"
+    default: 1000.0
+    max: 9999999999.0
+    exchange-rate: 10000 # 基准货币 USD, 汇率为 10000
+  EUR:
+    monetary-unit: "€"
+    default: 500.0
+    max: 5000000000.0
+    exchange-rate: 11100 # 1 EUR = 1.11 USD
+  GBP:
+    monetary-unit: "£"
+    default: 200.0
+    max: 3000000000.0
+    exchange-rate: 13300 # 1 GBP = 1.33 USD
 data:
+  default-currency: USD
   auto-save-interval: 10
   provider: yaml
