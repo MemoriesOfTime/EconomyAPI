@@ -15,6 +15,7 @@ public class EconomyAPIConfig {
     private final String provider;
 
     public EconomyAPIConfig() {
+        EconomyAPI.getInstance().saveDefaultConfig();
         config = EconomyAPI.getInstance().getConfig();
         if (UpgradeConfig.tryUpgradeConfigVersion(config.getInt("version", 1))) {
             config.reload();

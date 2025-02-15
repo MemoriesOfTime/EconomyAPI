@@ -16,8 +16,7 @@ public class UpgradeConfig {
                 Files.move(
                         Paths.get(EconomyAPI.getInstance().getDataFolder().toString(), "config.yml"),
                         target);
-            } catch (IOException e) {
-
+            } catch (IOException ignored) {
             }
             Config oldConfig = new Config(target.toFile());
             Config config = EconomyAPI.getInstance().getConfig();

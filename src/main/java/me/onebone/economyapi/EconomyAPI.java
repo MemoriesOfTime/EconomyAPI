@@ -360,6 +360,266 @@ public class EconomyAPI extends PluginBase implements Listener {
         return MAIN_CONFIG.getDefaultCurrency().getMaxAmount();
     }
 
+    // start 多货币方法
+    public LinkedHashMap<String, Double> getAllMoney(String currencyName) {
+        return this.provider.getAll(currencyName);
+    }
+
+    public double myMoney(Player player, String currencyName) {
+        return this.myMoney(player.getUniqueId(), currencyName);
+    }
+
+    public double myMoney(IPlayer player, String currencyName) {
+        return this.myMoney(player.getUniqueId(), currencyName);
+    }
+
+    public double myMoney(UUID id, String currencyName) {
+        checkAndConvertLegacy(id);
+        return myMoneyInternal(id.toString(), currencyName);
+    }
+
+    public double myMoney(String id, String currencyName) {
+        Optional<UUID> uuid = checkAndConvertLegacy(id);
+        return uuid.map(uuid1 -> myMoney(uuid1, currencyName)).orElse(myMoneyInternal(id, currencyName));
+    }
+
+    private double myMoneyInternal(String id, String currencyName) {
+        return this.provider.getMoney(id.toLowerCase(), currencyName);
+    }
+
+    public int setMoney(Player player, double amount, String currencyName) {
+        return this.setMoney(player.getUniqueId(), amount, currencyName, false);
+    }
+
+    public int setMoney(Player player, double amount, String currencyName, boolean force) {
+        return this.setMoney(player.getUniqueId(), amount, currencyName, force);
+    }
+
+    public int setMoney(IPlayer player, double amount, String currencyName) {
+        return this.setMoney(player.getUniqueId(), amount, currencyName, false);
+    }
+
+    public int setMoney(IPlayer player, double amount, String currencyName, boolean force) {
+        return this.setMoney(player.getUniqueId(), amount, currencyName, force);
+    }
+
+    public int setMoney(UUID id, double amount, String currencyName) {
+        return setMoney(id, amount, currencyName, false);
+    }
+
+    public int setMoney(UUID id, double amount, String currencyName, boolean force) {
+        checkAndConvertLegacy(id);
+        return setMoneyInternal(id.toString(), amount, currencyName, force);
+    }
+
+    public int setMoney(String id, double amount, String currencyName) {
+        return this.setMoney(id, amount, currencyName, false);
+    }
+
+    public int setMoney(String id, double amount, String currencyName, boolean force) {
+        Optional<UUID> uuid = checkAndConvertLegacy(id);
+        return uuid.map(uuid1 -> setMoney(uuid1, amount, currencyName, force))
+                .orElse(setMoneyInternal(id, amount, currencyName, force));
+    }
+
+    private int setMoneyInternal(String id, double amount, String currencyName, boolean force) {
+        id = id.toLowerCase();
+        if (amount < 0) {
+            return RET_INVALID;
+        }
+        SetMoneyEvent event = new SetMoneyEvent(id, amount, currencyName);
+        this.getServer().getPluginManager().callEvent(event);
+        if (!event.isCancelled() || force) {
+            if (this.provider.accountExists(id, currencyName)) {
+                amount = event.getAmount();
+                if (amount <= getMaxMoney(currencyName)) {
+                    this.provider.setMoney(currencyName, id, amount);
+                    return RET_SUCCESS;
+                } else {
+                    return RET_INVALID;
+                }
+            } else {
+                return RET_NO_ACCOUNT;
+            }
+        }
+        return RET_CANCELLED;
+    }
+
+    public int addMoney(Player player, double amount, String currencyName) {
+        return this.addMoney(player.getUniqueId(), amount, currencyName, false);
+    }
+
+    public int addMoney(Player player, double amount, String currencyName, boolean force) {
+        return this.addMoney(player.getUniqueId(), amount, currencyName, force);
+    }
+
+    public int addMoney(IPlayer player, double amount, String currencyName) {
+        return this.addMoney(player.getUniqueId(), amount, currencyName, false);
+    }
+
+    public int addMoney(IPlayer player, double amount, String currencyName, boolean force) {
+        return this.addMoney(player.getUniqueId(), amount, currencyName, force);
+    }
+
+    public int addMoney(UUID id, double amount, String currencyName) {
+        return addMoney(id, amount, currencyName, false);
+    }
+
+    public int addMoney(UUID id, double amount, String currencyName, boolean force) {
+        checkAndConvertLegacy(id);
+        return addMoneyInternal(id.toString(), amount, currencyName, force);
+    }
+
+    public int addMoney(String id, double amount, String currencyName) {
+        return this.addMoney(id, amount, currencyName, false);
+    }
+
+    public int addMoney(String id, double amount, String currencyName, boolean force) {
+        Optional<UUID> uuid = checkAndConvertLegacy(id);
+        return uuid.map(uuid1 -> addMoney(uuid1, amount, currencyName, force))
+                .orElse(addMoneyInternal(id, amount, currencyName, force));
+    }
+
+    private int addMoneyInternal(String id, double amount, String currencyName, boolean force) {
+        id = id.toLowerCase();
+        if (amount < 0) {
+            return RET_INVALID;
+        }
+        AddMoneyEvent event = new AddMoneyEvent(id, amount, currencyName);
+        this.getServer().getPluginManager().callEvent(event);
+        if (!event.isCancelled() || force) {
+            double money = this.provider.getMoney(id, currencyName);
+            if (money != -1) {
+                if (money + amount > getMaxMoney(currencyName)) {
+                    return RET_INVALID;
+                } else {
+                    this.provider.addMoney(currencyName, id, amount);
+                    return RET_SUCCESS;
+                }
+            } else {
+                return RET_NO_ACCOUNT;
+            }
+        }
+        return RET_CANCELLED;
+    }
+
+    public int reduceMoney(Player player, double amount, String currencyName) {
+        return this.reduceMoney(player.getUniqueId(), amount, currencyName, false);
+    }
+
+    public int reduceMoney(Player player, double amount, String currencyName, boolean force) {
+        return this.reduceMoney(player.getUniqueId(), amount, currencyName, force);
+    }
+
+    public int reduceMoney(IPlayer player, double amount, String currencyName) {
+        return this.reduceMoney(player.getUniqueId(), amount, currencyName, false);
+    }
+
+    public int reduceMoney(IPlayer player, double amount, String currencyName, boolean force) {
+        return this.reduceMoney(player.getUniqueId(), amount, currencyName, force);
+    }
+
+    public int reduceMoney(UUID id, double amount, String currencyName) {
+        return reduceMoney(id, amount, currencyName, false);
+    }
+
+    public int reduceMoney(UUID id, double amount, String currencyName, boolean force) {
+        checkAndConvertLegacy(id);
+        return reduceMoneyInternal(id.toString(), amount, currencyName, force);
+    }
+
+    public int reduceMoney(String id, double amount, String currencyName) {
+        return this.reduceMoney(id, amount, currencyName, false);
+    }
+
+    public int reduceMoney(String id, double amount, String currencyName, boolean force) {
+        Optional<UUID> uuid = checkAndConvertLegacy(id);
+        return uuid.map(uuid1 -> reduceMoney(uuid1, amount, currencyName, force))
+                .orElse(reduceMoneyInternal(id, amount, currencyName, force));
+    }
+
+    private int reduceMoneyInternal(String id, double amount, String currencyName, boolean force) {
+        id = id.toLowerCase();
+        if (amount < 0) {
+            return RET_INVALID;
+        }
+        ReduceMoneyEvent event = new ReduceMoneyEvent(id, amount, currencyName);
+        this.getServer().getPluginManager().callEvent(event);
+        if (!event.isCancelled() || force) {
+            amount = event.getAmount();
+            double money = this.provider.getMoney(id, currencyName);
+            if (money != -1) {
+                if (money - amount < 0) {
+                    return RET_INVALID;
+                } else {
+                    this.provider.reduceMoney(currencyName, id, amount);
+                    return RET_SUCCESS;
+                }
+            } else {
+                return RET_NO_ACCOUNT;
+            }
+        }
+        return RET_CANCELLED;
+    }
+
+    public boolean createAccount(Player player, double defaultMoney, String currencyName) {
+        return this.createAccount(player.getUniqueId(), defaultMoney, currencyName, false);
+    }
+
+    public boolean createAccount(Player player, double defaultMoney, String currencyName, boolean force) {
+        return this.createAccount(player.getUniqueId(), defaultMoney, currencyName, force);
+    }
+
+    public boolean createAccount(IPlayer player, double defaultMoney, String currencyName) {
+        return this.createAccount(player.getUniqueId(), defaultMoney, currencyName, false);
+    }
+
+    public boolean createAccount(IPlayer player, double defaultMoney, String currencyName, boolean force) {
+        return this.createAccount(player.getUniqueId(), defaultMoney, currencyName, force);
+    }
+
+    public boolean createAccount(UUID id, double defaultMoney, String currencyName) {
+        return this.createAccount(id, defaultMoney, currencyName, false);
+    }
+
+    public boolean createAccount(UUID id, double defaultMoney, String currencyName, boolean force) {
+        checkAndConvertLegacy(id);
+        return createAccountInternal(id.toString(), defaultMoney, currencyName, force);
+    }
+
+    public boolean createAccount(String id, double defaultMoney, String currencyName) {
+        return this.createAccount(id, defaultMoney, currencyName, false);
+    }
+
+    public boolean createAccount(String id, double defaultMoney, String currencyName, boolean force) {
+        Optional<UUID> uuid = checkAndConvertLegacy(id);
+        return uuid.map(uuid1 -> createAccount(uuid1, defaultMoney, currencyName, force))
+                .orElse(createAccountInternal(id, defaultMoney, currencyName, force));
+    }
+
+    private boolean createAccountInternal(String id, double defaultMoney, String currencyName, boolean force) {
+        CreateAccountEvent event = new CreateAccountEvent(id, defaultMoney, currencyName);
+        this.getServer().getPluginManager().callEvent(event);
+        if (!event.isCancelled() || force) {
+            defaultMoney = event.getDefaultMoney() == -1D ? getDefaultMoney(currencyName) : event.getDefaultMoney();
+            return this.provider.createAccount(currencyName, id, defaultMoney);
+        }
+        return false;
+    }
+
+    public String getMonetaryUnit(String currencyName) {
+        return MAIN_CONFIG.getCurrency(currencyName).getMonetaryUnit();
+    }
+
+    public double getDefaultMoney(String currencyName) {
+        return MAIN_CONFIG.getCurrency(currencyName).getDefaultAmount();
+    }
+
+    public double getMaxMoney(String currencyName) {
+        return MAIN_CONFIG.getCurrency(currencyName).getMaxAmount();
+    }
+    // end 多货币方法
+
     public void saveAll() {
         if (this.provider != null) {
             this.provider.save();

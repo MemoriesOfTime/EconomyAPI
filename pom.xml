@@ -2,10 +2,9 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>me.onebone</groupId>
-    <artifactId>economyapi</artifactId>
+    <groupId>me.onebone.economyapi.EconomyAPI</groupId>
+    <artifactId>EconomyAPI</artifactId>
     <version>2.0.6-SNAPSHOT</version>
-    <name>EconomyAPI</name>
     <url>https://github.com/MemoriesOfTime/EconomyAPI</url>
 
     <repositories>
@@ -49,7 +48,26 @@
     </distributionManagement>
 
     <build>
-        <finalName>${project.name}-${project.version}</finalName>
+        <finalName>${project.name}-${project.version}-MOT</finalName>
+
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <includes>
+                    <include>**/plugin.yml</include>
+                </includes>
+                <filtering>true</filtering>
+            </resource>
+
+            <resource>
+                <directory>src/main/resources</directory>
+                <excludes>
+                    <exclude>**/plugin.yml</exclude>
+                </excludes>
+                <filtering>false</filtering>
+            </resource>
+        </resources>
+
         <defaultGoal>clean package</defaultGoal>
         <plugins>
             <plugin>

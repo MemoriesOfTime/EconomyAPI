@@ -1,36 +1,39 @@
 package me.onebone.economyapi.provider;
 
-import cn.nukkit.item.ItemHelmetGold;
-import com.smallaswater.easysqlx.common.data.SqlData;
 import com.smallaswater.easysqlx.sqlite.SQLiteHelper;
-
+import com.smallaswater.easysqlx.sqlite.SQLiteHelper.DBTable;
 import java.io.File;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 
+import static me.onebone.economyapi.EconomyAPI.MAIN_CONFIG;
+
 /**
  * @author LT_Name
  */
 public class SQLiteProvider implements Provider {
-
     private static final String TABLE_NAME = "Money";
     private static final String COLUMN_ID = "id";
     private static final String COLUMN_PLAYER = "player";
     private static final String COLUMN_MONEY = "money";
-
+    private static final String COLUMN_CURRENCY = "currency"; // 新增 currency 列
     private SQLiteHelper sqLiteHelper;
-
-    private final HashMap<String, MoneyData> cache = new HashMap<>();
+    private final HashMap<String, MoneyData> cache = new HashMap<>(); // Key 修改为 currencyName:playerName
 
     @Override
     public void init(File path) {
         try {
-            this.sqLiteHelper = new SQLiteHelper(path.getAbsolutePath() + "/Money.db");
+            this.sqLiteHelper = new SQLiteHelper(path.getAbsolutePath() + File.separator +"Money.db");
             if (!this.sqLiteHelper.exists(TABLE_NAME)) {
-                this.sqLiteHelper.addTable(TABLE_NAME, SQLiteHelper.DBTable.asDbTable(MoneyData.class));
+                DBTable table = DBTable.asDbTable(MoneyData.class);
+                table.put(COLUMN_CURRENCY, "varchar(20)"); // 添加 currency 列到表结构中
+                this.sqLiteHelper.addTable(TABLE_NAME, table);
             }
-            this.sqLiteHelper.getAll(TABLE_NAME, MoneyData.class).forEach(data -> this.cache.put(data.getPlayer(), data));
+            MAIN_CONFIG.getCurrencyList().forEach(currencyName -> { // 初始化时加载所有货币的数据
+                this.sqLiteHelper.getDataByString(TABLE_NAME, COLUMN_CURRENCY + " = ?", new String[]{currencyName}, MoneyData.class)
+                        .forEach(data -> this.cache.put(getCacheKey(currencyName, data.getPlayer()), data));
+            });
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -38,7 +41,6 @@ public class SQLiteProvider implements Provider {
 
     @Override
     public void open() {
-
     }
 
     @Override
@@ -53,114 +55,127 @@ public class SQLiteProvider implements Provider {
         }
     }
 
+    private String getCacheKey(String currencyName, String playerName) {
+        return currencyName + ":" + playerName;
+    }
+
     @Override
     public boolean accountExists(String currencyName, String id) {
-        return false;
+        LinkedList<MoneyData> dataList = this.sqLiteHelper.getDataByString(TABLE_NAME, COLUMN_PLAYER + " = ? AND " + COLUMN_CURRENCY + " = ?", new String[]{id, currencyName}, MoneyData.class);
+        return !dataList.isEmpty();
     }
 
     @Override
     public boolean accountExists(String id) {
-        return this.sqLiteHelper.hasData(TABLE_NAME, COLUMN_PLAYER, id);
+        return accountExists(MAIN_CONFIG.getDefaultCurrency().getName(), id);
     }
 
     @Override
     public boolean removeAccount(String currencyName, String id) {
+        if (accountExists(currencyName, id)) {
+            this.sqLiteHelper.remove(TABLE_NAME, COLUMN_PLAYER, id); // 移除账户时使用 player 作为 key，currency 通过 MoneyData 对象内部 currency 字段区分
+            this.cache.remove(getCacheKey(currencyName, id)); // 从缓存中移除
+            return true;
+        }
         return false;
     }
 
     @Override
     public boolean removeAccount(String id) {
-        if (this.accountExists(id)) {
-            this.sqLiteHelper.remove(TABLE_NAME, COLUMN_PLAYER, id);
-            return true;
-        }
-        return false;
+        return removeAccount(MAIN_CONFIG.getDefaultCurrency().getName(), id);
     }
 
     @Override
     public boolean createAccount(String currencyName, String id, double defaultMoney) {
+        if (!accountExists(currencyName, id)) {
+            MoneyData values = new MoneyData(id, defaultMoney);
+            values.setCurrency(currencyName); // 设置 currencyName
+            this.sqLiteHelper.add(TABLE_NAME, values);
+            this.cache.put(getCacheKey(currencyName, id), values); // 添加到缓存
+            return true;
+        }
         return false;
     }
 
     @Override
     public boolean createAccount(String id, double defaultMoney) {
-        if (!this.accountExists(id)) {
-            MoneyData values = new MoneyData(id, defaultMoney);
-            this.sqLiteHelper.add(TABLE_NAME, values);
-            return true;
-        }
-        return false;
+        return createAccount(MAIN_CONFIG.getDefaultCurrency().getName(), id, defaultMoney);
     }
 
     @Override
     public boolean setMoney(String currencyName, String id, double amount) {
+        if (accountExists(currencyName, id)) {
+            MoneyData moneyData = this.getMoneyData(currencyName, id);
+            moneyData.setMoney(amount);
+            this.sqLiteHelper.set(TABLE_NAME, COLUMN_PLAYER, id, moneyData); // 使用 player 作为 key 更新，MoneyData 对象内部包含 currency 信息
+            this.cache.put(getCacheKey(currencyName, id), moneyData); // 更新缓存
+            return true;
+        }
         return false;
     }
 
     @Override
     public boolean setMoney(String id, double amount) {
-        if (this.accountExists(id)) {
-            MoneyData moneyData = this.getMoneyData(id);
-            moneyData.setMoney(amount);
-            this.sqLiteHelper.set(TABLE_NAME, COLUMN_PLAYER, id, moneyData);
-            return true;
-        }
-        return false;
+        return setMoney(MAIN_CONFIG.getDefaultCurrency().getName(), id, amount);
     }
 
     @Override
     public boolean addMoney(String currencyName, String id, double amount) {
+        if (accountExists(currencyName, id)) {
+            this.setMoney(currencyName, id, this.getMoney(currencyName, id) + amount);
+            return true;
+        }
         return false;
     }
 
     @Override
     public boolean addMoney(String id, double amount) {
-        if (this.accountExists(id)) {
-            this.setMoney(id, this.getMoney(id) + amount);
-            return true;
-        }
-        return false;
+        return addMoney(MAIN_CONFIG.getDefaultCurrency().getName(), id, amount);
     }
 
     @Override
     public boolean reduceMoney(String currencyName, String id, double amount) {
+        if (accountExists(currencyName, id)) {
+            this.setMoney(currencyName, id, this.getMoney(currencyName, id) - amount);
+            return true;
+        }
         return false;
     }
 
     @Override
     public boolean reduceMoney(String id, double amount) {
-        if (this.accountExists(id)) {
-            this.setMoney(id, this.getMoney(id) - amount);
-            return true;
-        }
-        return false;
+        return reduceMoney(MAIN_CONFIG.getDefaultCurrency().getName(), id, amount);
     }
 
     @Override
     public double getMoney(String currencyName, String id) {
-        return 0;
-    }
-
-    @Override
-    public double getMoney(String id) {
-        if (this.accountExists(id)) {
-            return this.getMoneyData(id).getMoney();
+        MoneyData data = this.getMoneyData(currencyName, id);
+        if (data != null) {
+            return data.getMoney();
         }
         return -1;
     }
 
     @Override
+    public double getMoney(String id) {
+        return getMoney(MAIN_CONFIG.getDefaultCurrency().getName(), id);
+    }
+
+    @Override
     public LinkedHashMap<String, Double> getAll(String currencyName) {
-        return null;
+        LinkedHashMap<String, Double> map = new LinkedHashMap<>();
+        MAIN_CONFIG.getCurrencyList().forEach(currency -> {
+            if (currency.equals(currencyName)) {
+                this.sqLiteHelper.getDataByString(TABLE_NAME, COLUMN_CURRENCY + " = ?", new String[]{currencyName}, MoneyData.class)
+                        .forEach(data -> map.put(data.getPlayer(), data.getMoney()));
+            }
+        });
+        return map;
     }
 
     @Override
     public LinkedHashMap<String, Double> getAll() {
-        LinkedHashMap<String, Double> map = new LinkedHashMap<>();
-        for (MoneyData data : this.cache.values()) {
-            map.put(data.getPlayer(), data.getMoney());
-        }
-        return map;
+        return getAll(MAIN_CONFIG.getDefaultCurrency().getName());
     }
 
     @Override
@@ -168,19 +183,25 @@ public class SQLiteProvider implements Provider {
         return "SQLite";
     }
 
-    private MoneyData getMoneyData(String id) {
-        if (!this.cache.containsKey(id)) {
-            MoneyData data = this.sqLiteHelper.get(TABLE_NAME, COLUMN_PLAYER, id, MoneyData.class);
-            this.cache.put(id, data);
+    private MoneyData getMoneyData(String currencyName, String id) {
+        String cacheKey = getCacheKey(currencyName, id);
+        if (this.cache.containsKey(cacheKey)) {
+            return this.cache.get(cacheKey);
         }
-        return this.cache.get(id);
+        LinkedList<MoneyData> dataList = this.sqLiteHelper.getDataByString(TABLE_NAME, COLUMN_PLAYER + " = ? AND " + COLUMN_CURRENCY + " = ?", new String[]{id, currencyName}, MoneyData.class);
+        if (!dataList.isEmpty()) {
+            MoneyData data = dataList.getFirst();
+            this.cache.put(cacheKey, data);
+            return data;
+        }
+        return null;
     }
 
     public static class MoneyData {
-
         public long id;
         public String player;
         public double money;
+        public String currency; // 新增 currency 字段
 
         public MoneyData() {
             //SQLiteHelper创建类需要无参数的构造方法
@@ -205,6 +226,14 @@ public class SQLiteProvider implements Provider {
 
         public void setMoney(double money) {
             this.money = money;
+        }
+
+        public String getCurrency() {
+            return currency;
+        }
+
+        public void setCurrency(String currency) {
+            this.currency = currency;
         }
     }
 }

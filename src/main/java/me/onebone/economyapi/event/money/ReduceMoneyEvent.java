@@ -22,15 +22,25 @@ import cn.nukkit.event.Cancellable;
 import cn.nukkit.event.Event;
 import cn.nukkit.event.HandlerList;
 
+import static me.onebone.economyapi.EconomyAPI.MAIN_CONFIG;
+
 public class ReduceMoneyEvent extends Event implements Cancellable {
     public static HandlerList handlerList = new HandlerList();
 
     private final String player;
     private double amount;
+    private final String currencyName;
 
     public ReduceMoneyEvent(String player, double amount) {
         this.player = player;
         this.amount = amount;
+        this.currencyName = MAIN_CONFIG.getDefaultCurrency().getName();
+    }
+
+    public ReduceMoneyEvent(String player, double amount, String currencyName) {
+        this.player = player;
+        this.amount = amount;
+        this.currencyName = currencyName;
     }
 
     public static HandlerList getHandlers() {
@@ -47,5 +57,9 @@ public class ReduceMoneyEvent extends Event implements Cancellable {
 
     public void setAmount(double amount) {
         this.amount = amount;
+    }
+
+    public String getCurrencyName() {
+        return this.currencyName;
     }
 }

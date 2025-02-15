@@ -1,23 +1,5 @@
 package me.onebone.economyapi.provider;
 
-/*
- * EconomyAPI: Core of economy system for Nukkit
- * Copyright (C) 2016  onebone <jyc00410@gmail.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
 import cn.nukkit.utils.Config;
 
 import java.io.File;
@@ -25,13 +7,16 @@ import java.util.LinkedHashMap;
 
 import static me.onebone.economyapi.EconomyAPI.MAIN_CONFIG;
 
+/**
+ * @author onebone
+ */
 public class YamlProvider implements Provider {
     private final LinkedHashMap<String, Config> currenciesData = new LinkedHashMap<>();
 
     @Override
     public void init(File path) {
         MAIN_CONFIG.getCurrencyList().forEach(currencyName -> {
-            Config file = new Config(new File(path, "money/" + currencyName + ".yml"), Config.YAML);
+            Config file = new Config(new File(path, "money" + File.separator + currencyName + ".yml"), Config.YAML);
             file.set("version", 2);
             LinkedHashMap<String, Object> temp = (LinkedHashMap) file.getRootSection()
                     .computeIfAbsent("money", s -> new LinkedHashMap<>());
@@ -101,7 +86,7 @@ public class YamlProvider implements Provider {
 
     @Override
     public boolean createAccount(String id, double defaultMoney) {
-        return createAccount(MAIN_CONFIG.getDefaultCurrency().getName(), defaultMoney);
+        return createAccount(MAIN_CONFIG.getDefaultCurrency().getName(), id, defaultMoney);
     }
 
     @Override
