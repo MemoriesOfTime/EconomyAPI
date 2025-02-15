@@ -76,7 +76,7 @@ public class GiveMoneyCommand extends PluginCommand<EconomyAPI> {
         }
         try {
             double amount = Double.parseDouble(args[1]);
-            if (amount < 0) {
+            if (amount <= 0 || !Double.isFinite(amount)) {
                 sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "givemoney-invalid-number"));
                 return true;
             }
