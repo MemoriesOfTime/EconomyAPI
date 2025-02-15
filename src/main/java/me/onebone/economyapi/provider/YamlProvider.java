@@ -155,6 +155,8 @@ public class YamlProvider implements Provider {
         temp.forEach((username, money) -> {
             if (money instanceof Integer) {
                 result.put(username, ((Integer) money).doubleValue());
+            } else if (money instanceof Double) {
+                result.put(username, (Double) money);
             } else if (money instanceof String) {
                 result.put(username, Double.parseDouble(money.toString()));
             }

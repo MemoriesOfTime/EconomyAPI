@@ -21,6 +21,7 @@ package me.onebone.economyapi.command;
 import cn.nukkit.Player;
 import cn.nukkit.command.Command;
 import cn.nukkit.command.CommandSender;
+import cn.nukkit.command.PluginCommand;
 import cn.nukkit.command.data.CommandParamType;
 import cn.nukkit.command.data.CommandParameter;
 import cn.nukkit.lang.LangCode;
@@ -29,21 +30,25 @@ import cn.nukkit.lang.TranslationContainer;
 import cn.nukkit.utils.TextFormat;
 import me.onebone.economyapi.EconomyAPI;
 
+import static me.onebone.economyapi.EconomyAPI.MAIN_CONFIG;
 import static me.onebone.economyapi.EconomyAPI.serverLangCode;
 
-public class PayCommand extends Command {
+public class PayCommand extends PluginCommand<EconomyAPI> {
     private final EconomyAPI plugin;
 
     public PayCommand(EconomyAPI plugin) {
-        super("pay", "Pays to other player", "/pay <player> <amount>");
+        super("pay", plugin);
 
+        this.setDescription("Pays to other player");
+        this.setUsage("/pay <player> <amount>");
         this.plugin = plugin;
 
         // command parameters
         commandParameters.clear();
         commandParameters.put("default", new CommandParameter[]{
-                new CommandParameter("player", CommandParamType.TARGET, false),
-                new CommandParameter("amount", CommandParamType.FLOAT, false)
+                CommandParameter.newType("player", false, CommandParamType.TARGET),
+                CommandParameter.newType("amount", false, CommandParamType.FLOAT),
+                CommandParameter.newEnum("currencyName", true, MAIN_CONFIG.getCurrencyList().toArray(new String[0]))
         });
     }
 
@@ -66,7 +71,6 @@ public class PayCommand extends Command {
             return true;
         }
         String player = args[0];
-
         Player p = this.plugin.getServer().getPlayer(player);
         if (p != null) {
             if (sender == p) {
@@ -94,7 +98,11 @@ public class PayCommand extends Command {
             return true;
         }
 
-        int result = this.plugin.reduceMoney((Player) sender, amount);
+        String currencyName = MAIN_CONFIG.getDefaultCurrency().getName();
+        if (args.length >= 3) {
+            currencyName = args[2];
+        }
+        int result = this.plugin.reduceMoney((Player) sender, amount, currencyName);
         switch (result) {
             case EconomyAPI.RET_NO_ACCOUNT:
                 sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "player-never-connected", player));
@@ -104,11 +112,11 @@ public class PayCommand extends Command {
                 sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "pay-failed"));
                 break;
             case EconomyAPI.RET_SUCCESS:
-                this.plugin.addMoney(player, amount, true);
+                this.plugin.addMoney(player, amount, currencyName, true);
 
-                sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "pay-success", EconomyAPI.MONEY_FORMAT.format(amount), plugin.getMonetaryUnit(), player));
+                sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "pay-success", EconomyAPI.MONEY_FORMAT.format(amount), plugin.getMonetaryUnit(currencyName), player));
                 if (p != null) {
-                    p.sendMessage(EconomyAPI.getI18n().tr(langCode, "money-paid", sender.getName(), EconomyAPI.MONEY_FORMAT.format(amount), plugin.getMonetaryUnit()));
+                    p.sendMessage(EconomyAPI.getI18n().tr(langCode, "money-paid", sender.getName(), EconomyAPI.MONEY_FORMAT.format(amount), plugin.getMonetaryUnit(currencyName)));
                 }
                 break;
         }

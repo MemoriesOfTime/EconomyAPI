@@ -21,6 +21,7 @@ package me.onebone.economyapi.command;
 import cn.nukkit.Player;
 import cn.nukkit.command.Command;
 import cn.nukkit.command.CommandSender;
+import cn.nukkit.command.PluginCommand;
 import cn.nukkit.command.data.CommandParamType;
 import cn.nukkit.command.data.CommandParameter;
 import cn.nukkit.lang.LangCode;
@@ -30,17 +31,20 @@ import me.onebone.economyapi.EconomyAPI;
 
 import static me.onebone.economyapi.EconomyAPI.serverLangCode;
 
-public class MyMoneyCommand extends Command {
+public class MyMoneyCommand extends PluginCommand<EconomyAPI> {
     private final EconomyAPI plugin;
 
     public MyMoneyCommand(EconomyAPI plugin) {
-        super("mymoney", "Shows your money", "/money", new String[]{"money", "bal", "seemoney", "balance"});
+        super("mymoney", plugin);
 
+        this.setDescription("Shows your money");
+        this.setUsage("/money");
+        this.setAliases(new String[]{"money", "bal", "seemoney", "balance"});
         this.plugin = plugin;
 
         commandParameters.clear();
         commandParameters.put("default", new CommandParameter[]{
-                new CommandParameter("player", CommandParamType.TARGET, false)
+                CommandParameter.newType("player", true, CommandParamType.TARGET)
         });
     }
 

@@ -23,6 +23,9 @@ import cn.nukkit.Player;
 import cn.nukkit.Server;
 import cn.nukkit.command.Command;
 import cn.nukkit.command.CommandSender;
+import cn.nukkit.command.PluginCommand;
+import cn.nukkit.command.data.CommandParamType;
+import cn.nukkit.command.data.CommandParameter;
 import cn.nukkit.lang.LangCode;
 import cn.nukkit.lang.TranslationContainer;
 import cn.nukkit.utils.TextFormat;
@@ -30,15 +33,26 @@ import me.onebone.economyapi.EconomyAPI;
 
 import java.util.*;
 
+import static me.onebone.economyapi.EconomyAPI.MAIN_CONFIG;
 import static me.onebone.economyapi.EconomyAPI.serverLangCode;
 
-public class TopMoneyCommand extends Command {
+public class TopMoneyCommand extends PluginCommand<EconomyAPI> {
     private final EconomyAPI plugin;
 
     public TopMoneyCommand(EconomyAPI plugin) {
-        super("topmoney", "Shows top money of this server", "/topmoney [page]", new String[]{"baltop", "balancetop"});
+        super("topmoney", plugin);
 
+        this.setDescription("Shows top money of this server");
+        this.setUsage("/topmoney [page]");
+        this.setAliases(new String[]{"baltop", "balancetop"});
         this.plugin = plugin;
+
+        // command parameters
+        commandParameters.clear();
+        commandParameters.put("default", new CommandParameter[]{
+                CommandParameter.newType("page", true, CommandParamType.INT),
+                CommandParameter.newEnum("currencyName", true, MAIN_CONFIG.getCurrencyList().toArray(new String[0]))
+        });
     }
 
     private static String getName(String possibleUuid) {
@@ -67,7 +81,11 @@ public class TopMoneyCommand extends Command {
 
         try {
             int arg = args.length > 0 ? Integer.parseInt(args[0]) : 1;
-            final LinkedHashMap<String, Double> money = new LinkedHashMap<>(plugin.getAllMoney());
+            String currencyName = MAIN_CONFIG.getDefaultCurrency().getName();
+            if (args.length >= 2) {
+                currencyName = args[1];
+            }
+            final LinkedHashMap<String, Double> money = new LinkedHashMap<>(plugin.getAllMoney(currencyName));
             sender.getServer().getScheduler().scheduleTask(EconomyAPI.getInstance(), () -> {
                 int page = args.length > 0 ? Math.max(1, Math.min(arg, money.size())) : 1;
                 List<String> list = new LinkedList<>(money.keySet());

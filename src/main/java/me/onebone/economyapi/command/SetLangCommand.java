@@ -20,24 +20,27 @@ package me.onebone.economyapi.command;
 
 import cn.nukkit.command.Command;
 import cn.nukkit.command.CommandSender;
+import cn.nukkit.command.PluginCommand;
 import cn.nukkit.command.data.CommandParamType;
 import cn.nukkit.command.data.CommandParameter;
 import cn.nukkit.lang.TranslationContainer;
 import cn.nukkit.utils.TextFormat;
 import me.onebone.economyapi.EconomyAPI;
 
-public class SetLangCommand extends Command {
+public class SetLangCommand extends PluginCommand<EconomyAPI> {
     private final EconomyAPI plugin;
 
     public SetLangCommand(EconomyAPI plugin) {
-        super("setlang", "Sets your preferred language", "/setlang <ccTLD>");
+        super("setlang", plugin);
 
+        this.setDescription("Sets your preferred language");
+        this.setUsage("/setlang <ccTLD>");
         this.plugin = plugin;
 
         // command parameters
         commandParameters.clear();
         commandParameters.put("default", new CommandParameter[]{
-                new CommandParameter("ccTLD", CommandParamType.STRING, false)
+                CommandParameter.newType("ccTLD", false, CommandParamType.STRING)
         });
     }
 

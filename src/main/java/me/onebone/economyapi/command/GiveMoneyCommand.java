@@ -19,8 +19,8 @@ package me.onebone.economyapi.command;
  */
 
 import cn.nukkit.Player;
-import cn.nukkit.command.Command;
 import cn.nukkit.command.CommandSender;
+import cn.nukkit.command.PluginCommand;
 import cn.nukkit.command.data.CommandParamType;
 import cn.nukkit.command.data.CommandParameter;
 import cn.nukkit.lang.LangCode;
@@ -28,21 +28,26 @@ import cn.nukkit.lang.TranslationContainer;
 import cn.nukkit.utils.TextFormat;
 import me.onebone.economyapi.EconomyAPI;
 
+import static me.onebone.economyapi.EconomyAPI.MAIN_CONFIG;
 import static me.onebone.economyapi.EconomyAPI.serverLangCode;
 
-public class GiveMoneyCommand extends Command {
+public class GiveMoneyCommand extends PluginCommand<EconomyAPI> {
     private final EconomyAPI plugin;
 
     public GiveMoneyCommand(EconomyAPI plugin) {
-        super("givemoney", "Gives money to player", "/givemoney <player> <amount>", new String[]{"deposit"});
+        super("givemoney", plugin);
 
+        this.setDescription("Gives money to player");
+        this.setUsage("/givemoney <player> <amount>");
+        this.setAliases(new String[]{"deposit"});
         this.plugin = plugin;
 
         // command parameters
         commandParameters.clear();
         commandParameters.put("default", new CommandParameter[]{
-                new CommandParameter("player", CommandParamType.TARGET, false),
-                new CommandParameter("amount", CommandParamType.FLOAT, false)
+                CommandParameter.newType("player", false, CommandParamType.TARGET),
+                CommandParameter.newType("amount", false, CommandParamType.FLOAT),
+                CommandParameter.newEnum("currencyName", true, MAIN_CONFIG.getCurrencyList().toArray(new String[0]))
         });
     }
 
@@ -65,6 +70,10 @@ public class GiveMoneyCommand extends Command {
         if (p != null) {
             player = p.getName();
         }
+        String currencyName = MAIN_CONFIG.getDefaultCurrency().getName();
+        if (args.length >= 3) {
+            currencyName = args[2];
+        }
         try {
             double amount = Double.parseDouble(args[1]);
             if (amount < 0) {
@@ -72,7 +81,7 @@ public class GiveMoneyCommand extends Command {
                 return true;
             }
 
-            int result = this.plugin.addMoney(player, amount);
+            int result = this.plugin.addMoney(player, amount, currencyName);
             switch (result) {
                 case EconomyAPI.RET_INVALID:
                     sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "reached-max", EconomyAPI.MONEY_FORMAT.format(amount), plugin.getMonetaryUnit()));

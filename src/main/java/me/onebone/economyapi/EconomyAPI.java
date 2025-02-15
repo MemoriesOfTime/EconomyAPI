@@ -21,6 +21,7 @@ package me.onebone.economyapi;
 import cn.nukkit.IPlayer;
 import cn.nukkit.Player;
 import cn.nukkit.Server;
+import cn.nukkit.command.data.CommandEnum;
 import cn.nukkit.event.EventHandler;
 import cn.nukkit.event.Listener;
 import cn.nukkit.event.player.PlayerJoinEvent;
@@ -41,10 +42,7 @@ import me.onebone.economyapi.task.AutoSaveTask;
 
 import java.lang.reflect.InvocationTargetException;
 import java.text.DecimalFormat;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 public class EconomyAPI extends PluginBase implements Listener {
     public static final int RET_NO_ACCOUNT = -3;
@@ -120,7 +118,11 @@ public class EconomyAPI extends PluginBase implements Listener {
         this.getServer().getPluginManager().callEvent(event);
         if (!event.isCancelled() || force) {
             defaultMoney = event.getDefaultMoney() == -1D ? this.getDefaultMoney() : event.getDefaultMoney();
-            return this.provider.createAccount(id, defaultMoney);
+            boolean failed = false;
+            for (String currencyName : MAIN_CONFIG.getCurrencyList()) {
+                failed = failed || !this.provider.createAccount(currencyName, id, defaultMoney);
+            }
+            return !failed;// usually return true.
         }
         return false;
     }
@@ -488,7 +490,7 @@ public class EconomyAPI extends PluginBase implements Listener {
         AddMoneyEvent event = new AddMoneyEvent(id, amount, currencyName);
         this.getServer().getPluginManager().callEvent(event);
         if (!event.isCancelled() || force) {
-            double money = this.provider.getMoney(id, currencyName);
+            double money = this.provider.getMoney(currencyName, id);
             if (money != -1) {
                 if (money + amount > getMaxMoney(currencyName)) {
                     return RET_INVALID;
@@ -547,7 +549,7 @@ public class EconomyAPI extends PluginBase implements Listener {
         this.getServer().getPluginManager().callEvent(event);
         if (!event.isCancelled() || force) {
             amount = event.getAmount();
-            double money = this.provider.getMoney(id, currencyName);
+            double money = this.provider.getMoney(currencyName, id);
             if (money != -1) {
                 if (money - amount < 0) {
                     return RET_INVALID;
