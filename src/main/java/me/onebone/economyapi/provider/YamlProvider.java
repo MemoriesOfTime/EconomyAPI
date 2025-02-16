@@ -17,12 +17,14 @@ public class YamlProvider implements Provider {
     public void init(File path) {
         MAIN_CONFIG.getCurrencyList().forEach(currencyName -> {
             Config file = new Config(new File(path, "money" + File.separator + currencyName + ".yml"), Config.YAML);
-            file.set("version", 2);
+            file.set("version", 3);
             LinkedHashMap<String, Object> temp = (LinkedHashMap) file.getRootSection()
                     .computeIfAbsent("money", s -> new LinkedHashMap<>());
             temp.forEach((username, money) -> {
                 if (money instanceof Integer) {
                     file.set(username, ((Integer) money).doubleValue());
+                } else if (money instanceof Double) {
+                    file.set(username, money);
                 } else if (money instanceof String) {
                     file.set(username, Double.parseDouble(money.toString()));
                 }

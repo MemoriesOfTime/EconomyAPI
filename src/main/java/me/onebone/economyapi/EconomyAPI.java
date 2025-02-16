@@ -21,7 +21,6 @@ package me.onebone.economyapi;
 import cn.nukkit.IPlayer;
 import cn.nukkit.Player;
 import cn.nukkit.Server;
-import cn.nukkit.command.data.CommandEnum;
 import cn.nukkit.event.EventHandler;
 import cn.nukkit.event.Listener;
 import cn.nukkit.event.player.PlayerJoinEvent;
@@ -31,6 +30,7 @@ import cn.nukkit.lang.PluginI18nManager;
 import cn.nukkit.plugin.PluginBase;
 import me.onebone.economyapi.command.*;
 import me.onebone.economyapi.config.EconomyAPIConfig;
+import me.onebone.economyapi.config.UpgradeConfig;
 import me.onebone.economyapi.event.account.CreateAccountEvent;
 import me.onebone.economyapi.event.money.AddMoneyEvent;
 import me.onebone.economyapi.event.money.ReduceMoneyEvent;
@@ -43,6 +43,9 @@ import me.onebone.economyapi.task.AutoSaveTask;
 import java.lang.reflect.InvocationTargetException;
 import java.text.DecimalFormat;
 import java.util.*;
+
+import static me.onebone.economyapi.config.UpgradeConfig.*;
+import static me.onebone.economyapi.config.UpgradeConfig.tryUpgradeSQLiteData;
 
 public class EconomyAPI extends PluginBase implements Listener {
     public static final int RET_NO_ACCOUNT = -3;
@@ -645,7 +648,21 @@ public class EconomyAPI extends PluginBase implements Listener {
 
     @Override
     public void onEnable() {
-        MAIN_CONFIG = new EconomyAPIConfig();
+        if (EconomyAPI.getInstance().getConfig() != null &&
+                UpgradeConfig.tryUpgradeConfigVersion(EconomyAPI.getInstance().getConfig().getInt("version", 1))) {
+            if (updateDoubleConfirmation()) {
+                MAIN_CONFIG = new EconomyAPIConfig();
+                if (tryUpgradeYamlData()) {
+                    EconomyAPI.getInstance().getLogger().info("YAML data upgrade complete.");
+                }
+                if (tryUpgradeSQLiteData()) {
+                    EconomyAPI.getInstance().getLogger().info("SQLite data upgrade complete.");
+                }
+            }
+        } else {
+            EconomyAPI.getInstance().saveDefaultConfig();
+            MAIN_CONFIG = new EconomyAPIConfig();
+        }
 
         boolean success = this.initialize();
 

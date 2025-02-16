@@ -24,11 +24,9 @@ public class SQLiteProvider implements Provider {
     @Override
     public void init(File path) {
         try {
-            this.sqLiteHelper = new SQLiteHelper(path.getAbsolutePath() + File.separator +"Money.db");
+            this.sqLiteHelper = new SQLiteHelper(path.getAbsolutePath() + File.separator +"MoneyV3.db");
             if (!this.sqLiteHelper.exists(TABLE_NAME)) {
-                DBTable table = DBTable.asDbTable(MoneyData.class);
-                table.put(COLUMN_CURRENCY, "varchar(20)"); // 添加 currency 列到表结构中
-                this.sqLiteHelper.addTable(TABLE_NAME, table);
+                this.sqLiteHelper.addTable(TABLE_NAME, DBTable.asDbTable(MoneyData.class));
             }
             MAIN_CONFIG.getCurrencyList().forEach(currencyName -> { // 初始化时加载所有货币的数据
                 this.sqLiteHelper.getDataByString(TABLE_NAME, COLUMN_CURRENCY + " = ?", new String[]{currencyName}, MoneyData.class)
@@ -198,10 +196,10 @@ public class SQLiteProvider implements Provider {
     }
 
     public static class MoneyData {
-        public long id;
-        public String player;
-        public double money;
-        public String currency; // 新增 currency 字段
+        private long id;
+        private String player;
+        private double money;
+        private String currency;
 
         public MoneyData() {
             //SQLiteHelper创建类需要无参数的构造方法

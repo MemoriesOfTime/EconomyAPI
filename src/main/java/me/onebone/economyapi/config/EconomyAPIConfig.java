@@ -3,6 +3,7 @@ package me.onebone.economyapi.config;
 import cn.nukkit.utils.Config;
 import cn.nukkit.utils.ConfigSection;
 import me.onebone.economyapi.EconomyAPI;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,11 +16,7 @@ public class EconomyAPIConfig {
     private final String provider;
 
     public EconomyAPIConfig() {
-        EconomyAPI.getInstance().saveDefaultConfig();
         config = EconomyAPI.getInstance().getConfig();
-        if (UpgradeConfig.tryUpgradeConfigVersion(config.getInt("version", 1))) {
-            config.reload();
-        }
 
         // 读取多货币配置
         loadCurrencies();
@@ -45,6 +42,10 @@ public class EconomyAPIConfig {
                 currencies.put(currencyName, new Currency(currencyName, monetaryUnit, defaultAmount, maxAmount, exchangeRate));
             }
         }
+    }
+
+    public Config getConfig() {
+        return config;
     }
 
     // 获取默认货币
