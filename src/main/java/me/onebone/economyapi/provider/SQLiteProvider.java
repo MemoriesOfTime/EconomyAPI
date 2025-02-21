@@ -2,6 +2,7 @@ package me.onebone.economyapi.provider;
 
 import com.smallaswater.easysqlx.sqlite.SQLiteHelper;
 import com.smallaswater.easysqlx.sqlite.SQLiteHelper.DBTable;
+
 import java.io.File;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -24,7 +25,7 @@ public class SQLiteProvider implements Provider {
     @Override
     public void init(File path) {
         try {
-            this.sqLiteHelper = new SQLiteHelper(path.getAbsolutePath() + File.separator +"MoneyV3.db");
+            this.sqLiteHelper = new SQLiteHelper(path.getAbsolutePath() + File.separator + "MoneyV3.db");
             if (!this.sqLiteHelper.exists(TABLE_NAME)) {
                 this.sqLiteHelper.addTable(TABLE_NAME, DBTable.asDbTable(MoneyData.class));
             }
@@ -70,12 +71,12 @@ public class SQLiteProvider implements Provider {
 
     @Override
     public boolean removeAccount(String currencyName, String id) {
-        if (accountExists(currencyName, id)) {
-            this.sqLiteHelper.remove(TABLE_NAME, COLUMN_PLAYER, id); // 移除账户时使用 player 作为 key，currency 通过 MoneyData 对象内部 currency 字段区分
-            this.cache.remove(getCacheKey(currencyName, id)); // 从缓存中移除
-            return true;
+        if (!accountExists(currencyName, id)) {
+            return false;
         }
-        return false;
+        this.sqLiteHelper.remove(TABLE_NAME, COLUMN_PLAYER, id); // 移除账户时使用 player 作为 key，currency 通过 MoneyData 对象内部 currency 字段区分
+        this.cache.remove(getCacheKey(currencyName, id)); // 从缓存中移除
+        return true;
     }
 
     @Override
@@ -85,14 +86,14 @@ public class SQLiteProvider implements Provider {
 
     @Override
     public boolean createAccount(String currencyName, String id, double defaultMoney) {
-        if (!accountExists(currencyName, id)) {
-            MoneyData values = new MoneyData(id, defaultMoney);
-            values.setCurrency(currencyName); // 设置 currencyName
-            this.sqLiteHelper.add(TABLE_NAME, values);
-            this.cache.put(getCacheKey(currencyName, id), values); // 添加到缓存
-            return true;
+        if (accountExists(currencyName, id)) {
+            return false;
         }
-        return false;
+        MoneyData values = new MoneyData(id, defaultMoney);
+        values.setCurrency(currencyName); // 设置 currencyName
+        this.sqLiteHelper.add(TABLE_NAME, values);
+        this.cache.put(getCacheKey(currencyName, id), values); // 添加到缓存
+        return true;
     }
 
     @Override
@@ -102,14 +103,14 @@ public class SQLiteProvider implements Provider {
 
     @Override
     public boolean setMoney(String currencyName, String id, double amount) {
-        if (accountExists(currencyName, id)) {
-            MoneyData moneyData = this.getMoneyData(currencyName, id);
-            moneyData.setMoney(amount);
-            this.sqLiteHelper.set(TABLE_NAME, COLUMN_PLAYER, id, moneyData); // 使用 player 作为 key 更新，MoneyData 对象内部包含 currency 信息
-            this.cache.put(getCacheKey(currencyName, id), moneyData); // 更新缓存
-            return true;
+        if (!accountExists(currencyName, id)) {
+            return false;
         }
-        return false;
+        MoneyData moneyData = this.getMoneyData(currencyName, id);
+        moneyData.setMoney(amount);
+        this.sqLiteHelper.set(TABLE_NAME, COLUMN_PLAYER, id, moneyData); // 使用 player 作为 key 更新，MoneyData 对象内部包含 currency 信息
+        this.cache.put(getCacheKey(currencyName, id), moneyData); // 更新缓存
+        return true;
     }
 
     @Override
@@ -119,11 +120,11 @@ public class SQLiteProvider implements Provider {
 
     @Override
     public boolean addMoney(String currencyName, String id, double amount) {
-        if (accountExists(currencyName, id)) {
-            this.setMoney(currencyName, id, this.getMoney(currencyName, id) + amount);
-            return true;
+        if (!accountExists(currencyName, id)) {
+            return false;
         }
-        return false;
+        this.setMoney(currencyName, id, this.getMoney(currencyName, id) + amount);
+        return true;
     }
 
     @Override
@@ -133,11 +134,11 @@ public class SQLiteProvider implements Provider {
 
     @Override
     public boolean reduceMoney(String currencyName, String id, double amount) {
-        if (accountExists(currencyName, id)) {
-            this.setMoney(currencyName, id, this.getMoney(currencyName, id) - amount);
-            return true;
+        if (!accountExists(currencyName, id)) {
+            return false;
         }
-        return false;
+        this.setMoney(currencyName, id, this.getMoney(currencyName, id) - amount);
+        return true;
     }
 
     @Override

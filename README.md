@@ -20,6 +20,10 @@ Core of economy system for Nukkit
 
 ## For developers
 
+> [!WARNING]
+> MySQL provider:
+> Due to precision issues, MySQL uses bigint to store monetary amounts. The retrieved values need to be divided by 100 to convert them to the actual amounts.
+
 ###  Single Currency Economies
 
 Developers can access to EconomyAPI's API by using:

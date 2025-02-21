@@ -18,4 +18,12 @@ currencies:
 data:
   default-currency: USD
   auto-save-interval: 10 # unit: minutes
-  provider: yaml # available values: yaml | sqlite
+  provider: yaml # available values: yaml | sqlite | mysql
+sql:
+  mysql:
+    host: localhost
+    port: 3306
+    database: money
+    username: root
+    password: root123456
+    table-prefix: "v1_"
