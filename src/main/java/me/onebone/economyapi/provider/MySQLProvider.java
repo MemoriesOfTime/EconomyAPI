@@ -1,5 +1,7 @@
 package me.onebone.economyapi.provider;
 
+import cn.nukkit.Server;
+import cn.nukkit.utils.ConfigSection;
 import com.smallaswater.easysqlx.common.data.SqlData;
 import com.smallaswater.easysqlx.common.data.SqlDataList;
 import com.smallaswater.easysqlx.exceptions.MySqlLoginException;
@@ -22,16 +24,34 @@ public class MySQLProvider implements Provider {
         MySQLProvider.TABLE_NAME_PREFIX = prefix;
     }
 
-    public static void initSql(UserData userData) {
+    @Override
+    public void init(File path) {
         if (MySQLProvider.manager != null) {
             EconomyAPI.getInstance().getLogger().warning("MySQL is already initialized.");
             return;
         }
-        try {
-            MySQLProvider.manager = new SqlManager(EconomyAPI.getInstance(), userData);
-        } catch (MySqlLoginException e) {
-            throw new RuntimeException(e);
+
+        if (!MAIN_CONFIG.getConfig().exists("sql.mysql")) {
+            EconomyAPI.getInstance().getLogger().error("MySQL is not configured.");
+            return;
         }
+        ConfigSection mysqlSection = MAIN_CONFIG.getConfig().getSection("sql.mysql");
+        String host = mysqlSection.getString("host", "localhost");
+        int port = mysqlSection.getInt("port", 3306);
+        String database = mysqlSection.getString("database", "economy");
+        String username = mysqlSection.getString("username", "root");
+        String password = mysqlSection.getString("password", "root123456");
+        MySQLProvider.initTablePrefix(mysqlSection.getString("table-prefix", "v1_"));
+        try {
+            MySQLProvider.manager = new SqlManager(EconomyAPI.getInstance(), new UserData(
+                    username, password, host, port, database
+            ));
+        } catch (MySqlLoginException e) {
+            EconomyAPI.getInstance().getLogger().error("MySQL connection failed.", e);
+            Server.getInstance().getPluginManager().disablePlugin(EconomyAPI.getInstance());
+            return;
+        }
+
         MAIN_CONFIG.getCurrencyList().forEach(currencyName -> { // 初始化 sql 时创建表单
             MySQLProvider.manager.createTable(
                     TABLE_NAME_PREFIX + currencyName,
@@ -39,11 +59,7 @@ public class MySQLProvider implements Provider {
                     new TableType("money", DataType.getBIGINT(), false)
             );
         });
-    }
-
-    @Override
-    public void init(File path) {
-        // not required in MySQL, because it is initialized in config.
+        EconomyAPI.getInstance().getLogger().info("MySQL initialized!");
     }
 
     @Override

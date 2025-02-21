@@ -2,9 +2,7 @@ package me.onebone.economyapi.config;
 
 import cn.nukkit.utils.Config;
 import cn.nukkit.utils.ConfigSection;
-import com.smallaswater.easysqlx.mysql.utils.UserData;
 import me.onebone.economyapi.EconomyAPI;
-import me.onebone.economyapi.provider.MySQLProvider;
 
 import java.util.HashMap;
 import java.util.List;
@@ -27,8 +25,6 @@ public class EconomyAPIConfig {
         defaultCurrency = config.getString("data.default-currency", "USD");
         autoSaveInterval = config.getInt("data.auto-save-interval", 10);
         provider = config.getString("data.provider", "yaml");
-
-        loadSqlConfig();
     }
 
     // 读取货币配置
@@ -45,21 +41,6 @@ public class EconomyAPIConfig {
                 // 将货币添加到货币列表
                 currencies.put(currencyName, new Currency(currencyName, monetaryUnit, defaultAmount, maxAmount, exchangeRate));
             }
-        }
-    }
-
-    private void loadSqlConfig() {
-        if (provider == "mysql" && config.exists("data.mysql")) {
-            ConfigSection mysqlSection = config.getSection("data.mysql");
-            String host = mysqlSection.getString("host", "localhost");
-            int port = mysqlSection.getInt("port", 3306);
-            String database = mysqlSection.getString("database", "money");
-            String username = mysqlSection.getString("username", "root");
-            String password = mysqlSection.getString("password", "root123456");
-            MySQLProvider.initTablePrefix(mysqlSection.getString("table-prefix", "v1_"));
-            MySQLProvider.initSql(new UserData(
-                    username, password, host, port, database
-            ));
         }
     }
 
