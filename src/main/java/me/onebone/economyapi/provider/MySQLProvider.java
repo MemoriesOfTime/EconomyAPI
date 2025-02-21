@@ -55,7 +55,7 @@ public class MySQLProvider implements Provider {
         MAIN_CONFIG.getCurrencyList().forEach(currencyName -> { // 初始化 sql 时创建表单
             MySQLProvider.manager.createTable(
                     TABLE_NAME_PREFIX + currencyName,
-                    new TableType("player", DataType.getVARCHAR(), true),
+                    new TableType("player", DataType.getUUID(), true),
                     new TableType("money", DataType.getBIGINT(), false)
             );
         });
