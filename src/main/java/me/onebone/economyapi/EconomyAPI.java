@@ -392,7 +392,7 @@ public class EconomyAPI extends PluginBase implements Listener {
     }
 
     private double myMoneyInternal(String id, String currencyName) {
-        return this.provider.getMoney(id.toLowerCase(), currencyName);
+        return this.provider.getMoney(currencyName, id.toLowerCase());
     }
 
     public int setMoney(Player player, double amount, String currencyName) {
@@ -438,7 +438,7 @@ public class EconomyAPI extends PluginBase implements Listener {
         SetMoneyEvent event = new SetMoneyEvent(id, amount, currencyName);
         this.getServer().getPluginManager().callEvent(event);
         if (!event.isCancelled() || force) {
-            if (this.provider.accountExists(id, currencyName)) {
+            if (this.provider.accountExists(currencyName, id)) {
                 amount = event.getAmount();
                 if (amount <= getMaxMoney(currencyName)) {
                     this.provider.setMoney(currencyName, id, amount);
@@ -684,6 +684,9 @@ public class EconomyAPI extends PluginBase implements Listener {
     @Override
     public void onDisable() {
         this.saveAll();
+        if (MAIN_CONFIG.getProvider().equals("mysql")) {
+            provider.close();
+        }
     }
 
     private boolean initialize() {

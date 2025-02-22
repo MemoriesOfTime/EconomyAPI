@@ -26,7 +26,7 @@ public class MySQLProvider implements Provider {
 
     @Override
     public void init(File path) {
-        if (MySQLProvider.manager != null) {
+        if (MySQLProvider.manager != null && MySQLProvider.manager.isEnable()) {
             EconomyAPI.getInstance().getLogger().warning("MySQL is already initialized.");
             return;
         }
@@ -65,8 +65,9 @@ public class MySQLProvider implements Provider {
     @Override
     public void open() {
         if (MySQLProvider.manager == null) return;
-        MySQLProvider.manager.isEnable();
-        // 重新连接 MySQLProvider.manager.connect();
+        if (!MySQLProvider.manager.isEnable()) {
+            this.init(null);
+        }
     }
 
     @Override
@@ -109,7 +110,7 @@ public class MySQLProvider implements Provider {
     @Override
     public boolean createAccount(String currencyName, String id, double defaultMoney) {
         // convert money to bigint
-        int money = (int) defaultMoney * 100;
+        long money = (long) defaultMoney * 100;
         if (!accountExists(currencyName, id)) {
             SqlData sqlData = new SqlData("player", id).put("money", money);
             return MySQLProvider.manager.insertData(TABLE_NAME_PREFIX + currencyName, sqlData);
@@ -124,7 +125,7 @@ public class MySQLProvider implements Provider {
 
     @Override
     public boolean setMoney(String currencyName, String id, double amount) {
-        int money = (int) amount * 100;
+        long money = (long) amount * 100;
         return MySQLProvider.manager.setData(TABLE_NAME_PREFIX + currencyName, new SqlData("money", money), new SqlData("player", id));
     }
 
@@ -135,7 +136,7 @@ public class MySQLProvider implements Provider {
 
     @Override
     public boolean addMoney(String currencyName, String id, double amount) {
-        int money = (int) (getMoney(currencyName, id) + amount) * 100;
+        long money = (long) (getMoney(currencyName, id) + amount) * 100;
         return MySQLProvider.manager.setData(TABLE_NAME_PREFIX + currencyName, new SqlData("money", money), new SqlData("player", id));
     }
 
@@ -146,7 +147,7 @@ public class MySQLProvider implements Provider {
 
     @Override
     public boolean reduceMoney(String currencyName, String id, double amount) {
-        int money = (int) (getMoney(currencyName, id) - amount) * 100;
+        long money = (long) (getMoney(currencyName, id) - amount) * 100;
         return MySQLProvider.manager.setData(TABLE_NAME_PREFIX + currencyName, new SqlData("money", money), new SqlData("player", id));
     }
 
@@ -159,7 +160,7 @@ public class MySQLProvider implements Provider {
     public double getMoney(String currencyName, String id) {
         SqlDataList<SqlData> sqlDataList = MySQLProvider.manager.getData(TABLE_NAME_PREFIX + currencyName, "money", new SqlData("player", id));
         if (sqlDataList.isEmpty()) return 0;
-        return sqlDataList.get(0).getInt("money") / 100.0;
+        return sqlDataList.get(0).getLong("money") / 100.0;
     }
 
     @Override
@@ -179,7 +180,7 @@ public class MySQLProvider implements Provider {
             LinkedHashMap<String, Object> data = sqlData.getData();
             try {
                 String playerId = (String) data.get("player");
-                int moneyObj = (int) data.get("money");
+                long moneyObj = (long) data.get("money");
                 map.put(playerId, moneyObj / 100.0);
             } catch (Exception e) {
                 EconomyAPI.getInstance().getLogger().error("Error processing SqlData: " + sqlData, e);
