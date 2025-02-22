@@ -39,12 +39,12 @@ public class UpgradeConfig {
         return false;
     }
 
-    protected static String TEMP_CURRENCY_NAME = "";
+    protected static String TEMP_CURRENCY_NAME = "USD";
 
     public static boolean updateDoubleConfirmation() {
         System.out.println("An older version of the Money.yml configuration file has been detected. Would you like to upgrade?");
         System.out.println("The upgrade process will perform the following steps:");
-        System.out.println("1. Copy the Money.yml file to a new file under the money directory (money/<default currency name>.yml)");
+        System.out.println("1. Copy the Money.yml file to a new file under the money directory (money/" + TEMP_CURRENCY_NAME + ".yml)");
         System.out.println("2. Modify the version of the new file to 3");
         System.out.println("3. Rename the old Money.yml file to Money.old.yml");
         System.out.print("Please confirm whether to upgrade (yes/no): ");
@@ -54,13 +54,6 @@ public class UpgradeConfig {
             System.out.println("The plugin version is too high and does not support this configuration file. Please use version 2.0.6 of EconomyAPI!");
             System.exit(1);
         }
-        // Input default currency
-        System.out.print("Please enter the default currency name (default: USD): ");
-        TEMP_CURRENCY_NAME = new Scanner(System.in).nextLine().trim();
-        if (TEMP_CURRENCY_NAME.isEmpty()) {
-            TEMP_CURRENCY_NAME = "USD";
-        }
-        System.out.println("Default currency name used: " + TEMP_CURRENCY_NAME);
 
         EconomyAPI.getInstance().saveDefaultConfig();
         EconomyAPI.getInstance().getConfig().getSection("currencies").set(
