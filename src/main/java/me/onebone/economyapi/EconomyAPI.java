@@ -61,8 +61,9 @@ public class EconomyAPI extends PluginBase implements Listener {
     private static EconomyAPI instance;
     private static PluginI18n i18n;
     public static LangCode serverLangCode;
-    private Provider provider;
-    private final HashMap<String, Class<?>> providerClass = new HashMap<>();
+    protected Provider provider;
+    protected final HashMap<String, Class<?>> providerClass = new HashMap<>();
+    protected static AsyncOperator asyncOperator = new AsyncOperator();
 
     static {
         MONEY_FORMAT.setMaximumFractionDigits(2);
@@ -732,6 +733,19 @@ public class EconomyAPI extends PluginBase implements Listener {
         return true;
     }
 
+    /**
+     * Gets the async operator for economy operations.
+     *
+     * @return AsyncOperator instance for performing asynchronous economy operations
+     * @example <pre>
+     * EconomyAPI.getAsyncOperator().myMoney(player).thenAccept(money -> {
+     *     player.sendMessage("Your balance: " + money);
+     * });
+     * </pre>
+     */
+    public static AsyncOperator getAsyncOperator() {
+        return asyncOperator;
+    }
 
     private void checkAndConvertLegacy(UUID uuid) {
         IPlayer player = getServer().getOfflinePlayer(uuid);

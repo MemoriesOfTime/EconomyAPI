@@ -63,19 +63,19 @@ public class PayCommand extends PluginCommand<EconomyAPI> {
 
         if (!(sender instanceof Player)) {
             sender.sendMessage(new TranslationContainer("%commands.generic.ingame"));
-            return true;
+            return false;
         }
 
         if (args.length < 2) {
             sender.sendMessage(new TranslationContainer("commands.generic.usage", this.getUsage()));
-            return true;
+            return false;
         }
         String player = args[0];
         Player p = this.plugin.getServer().getPlayer(player);
         if (p != null) {
             if (sender == p) {
                 sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "pay-failed-self"));
-                return true;
+                return false;
             }
 
             player = p.getName();
@@ -84,27 +84,26 @@ public class PayCommand extends PluginCommand<EconomyAPI> {
         try {
             amount = Double.parseDouble(args[1]);
             if (!Double.isFinite(amount)) {
-                throw new NumberFormatException();
+                sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "takemoney-invalid-number"));
+                return false;
             }
         } catch (NumberFormatException e) {
             sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "takemoney-must-be-number"));
-            return true;
+            return false;
         }
 
         if (amount < 0.01) {
             sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "pay-too-low"));
-            return true;
+            return false;
         }
 
         if (!this.plugin.hasAccount(player)) {
             sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "player-never-connected", player));
-            return true;
+            return false;
         }
 
-        String currencyName = MAIN_CONFIG.getDefaultCurrency().getName();
-        if (args.length >= 3) {
-            currencyName = args[2];
-        }
+        final String currencyName = args.length >= 3 ? args[2] : MAIN_CONFIG.getDefaultCurrency().getName();
+
         int result = this.plugin.reduceMoney((Player) sender, amount, currencyName);
         switch (result) {
             case EconomyAPI.RET_NO_ACCOUNT:

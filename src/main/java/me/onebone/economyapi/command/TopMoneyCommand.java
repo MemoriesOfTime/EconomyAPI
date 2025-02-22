@@ -70,7 +70,7 @@ public class TopMoneyCommand extends PluginCommand<EconomyAPI> {
         return possibleUuid;
     }
 
-	@Override
+    @Override
     public boolean execute(final CommandSender sender, String label, final String[] args) {
         if (!this.plugin.isEnabled()) return false;
         LangCode langCode = sender instanceof Player ? ((Player) sender).getLanguageCode() : serverLangCode;
@@ -79,44 +79,41 @@ public class TopMoneyCommand extends PluginCommand<EconomyAPI> {
             return false;
         }
 
-        try {
-            int arg = args.length > 0 ? Integer.parseInt(args[0]) : 1;
-            final String currencyName = args.length >= 2 ? args[1] : MAIN_CONFIG.getDefaultCurrency().getName();
-            sender.getServer().getScheduler().scheduleTask(EconomyAPI.getInstance(), () -> {
-                final LinkedHashMap<String, Double> money = new LinkedHashMap<>(plugin.getAllMoney(currencyName));
-                int page = args.length > 0 ? Math.max(1, Math.min(arg, money.size())) : 1;
-                List<String> list = new LinkedList<>(money.keySet());
-                list.sort((s1, s2) -> Double.compare(money.get(s2), money.get(s1)));
-                StringBuilder output = new StringBuilder();
-                output.append(EconomyAPI.getI18n().tr(langCode, "topmoney-tag", Integer.toString(page), Integer.toString(((money.size() + 6) / 5)))).append("\n");
-                if (page == 1) {
-                    double total = 0;
-                    for (double val : money.values()) {
-                        total += val;
-                    }
-                    output.append(EconomyAPI.getI18n().tr(langCode, "topmoney-total", EconomyAPI.MONEY_FORMAT.format(total))).append("\n\n");
-                }
-                int duplicate = 0;
-                double prev = -1D;
-                for (int n = 0; n < list.size(); n++) {
-                    int current = (int) Math.ceil((double) (n + 1) / 5);
-                    if (page == current) {
-                    	double m = money.get(list.get(n));
-                    	if (m == prev) duplicate++;
-                    	else duplicate = 0;
-                    	prev = m;
-                        output.append(EconomyAPI.getI18n().tr(langCode, "topmoney-format", Integer.toString(n + 1 - duplicate), getName(list.get(n)), EconomyAPI.MONEY_FORMAT.format(m))).append("\n");
-                    } else if (page < current) {
-                        break;
-                    }
-                }
+        int arg = args.length > 0 ? Integer.parseInt(args[0]) : 1;
+        final String currencyName = args.length >= 2 ? args[1] : MAIN_CONFIG.getDefaultCurrency().getName();
 
-                sender.sendMessage(output.substring(0, output.length() - 1));
-            }, true);
-        } catch (NumberFormatException e) {
+        sender.getServer().getScheduler().scheduleTask(EconomyAPI.getInstance(), () -> {
+            final LinkedHashMap<String, Double> money = new LinkedHashMap<>(plugin.getAllMoney(currencyName));
+            int page = args.length > 0 ? Math.max(1, Math.min(arg, money.size())) : 1;
+            List<String> list = new LinkedList<>(money.keySet());
+            list.sort((s1, s2) -> Double.compare(money.get(s2), money.get(s1)));
+            StringBuilder output = new StringBuilder();
+            output.append(EconomyAPI.getI18n().tr(langCode, "topmoney-tag", Integer.toString(page), Integer.toString(((money.size() + 6) / 5)))).append("\n");
+            if (page == 1) {
+                double total = 0;
+                for (double val : money.values()) {
+                    total += val;
+                }
+                output.append(EconomyAPI.getI18n().tr(langCode, "topmoney-total", EconomyAPI.MONEY_FORMAT.format(total))).append("\n\n");
+            }
+            int duplicate = 0;
+            double prev = -1D;
+            for (int n = 0; n < list.size(); n++) {
+                int current = (int) Math.ceil((double) (n + 1) / 5);
+                if (page == current) {
+                    double m = money.get(list.get(n));
+                    if (m == prev) duplicate++;
+                    else duplicate = 0;
+                    prev = m;
+                    output.append(EconomyAPI.getI18n().tr(langCode, "topmoney-format", Integer.toString(n + 1 - duplicate), getName(list.get(n)), EconomyAPI.MONEY_FORMAT.format(m))).append("\n");
+                } else if (page < current) {
+                    break;
+                }
+            }
 
-            sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "topmoney-invalid-page-number"));
-        }
+            sender.sendMessage(output.substring(0, output.length() - 1));
+        }, true);
+
         return true;
     }
 }

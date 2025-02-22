@@ -56,13 +56,13 @@ public class GiveMoneyCommand extends PluginCommand<EconomyAPI> {
         if (!this.plugin.isEnabled()) return false;
         LangCode langCode = sender instanceof Player ? ((Player) sender).getLanguageCode() : serverLangCode;
         if (!sender.hasPermission("economyapi.command.givemoney")) {
-            sender.sendMessage(new TranslationContainer(TextFormat.RED + "%commands.generic.permission"));
+            sender.sendMessage(new TranslationContainer(TextFormat.RED + "%cofalsemmands.generic.permission"));
             return false;
         }
 
         if (args.length < 2) {
             sender.sendMessage(new TranslationContainer("commands.generic.usage", this.getUsage()));
-            return true;
+            return false;
         }
         String player = args[0];
 
@@ -70,35 +70,39 @@ public class GiveMoneyCommand extends PluginCommand<EconomyAPI> {
         if (p != null) {
             player = p.getName();
         }
-        String currencyName = MAIN_CONFIG.getDefaultCurrency().getName();
-        if (args.length >= 3) {
-            currencyName = args[2];
-        }
+
+        double amount;
         try {
-            double amount = Double.parseDouble(args[1]);
+            amount = Double.parseDouble(args[1]);
             if (amount <= 0 || !Double.isFinite(amount)) {
                 sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "givemoney-invalid-number"));
-                return true;
-            }
-
-            int result = this.plugin.addMoney(player, amount, currencyName);
-            switch (result) {
-                case EconomyAPI.RET_INVALID:
-                    sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "reached-max", EconomyAPI.MONEY_FORMAT.format(amount), plugin.getMonetaryUnit()));
-                    return true;
-                case EconomyAPI.RET_NO_ACCOUNT:
-                    sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "player-never-connected", player));
-                    return true;
-                case EconomyAPI.RET_SUCCESS:
-                    sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "givemoney-gave-money", player, EconomyAPI.MONEY_FORMAT.format(amount), plugin.getMonetaryUnit()));
-                    if (p != null) {
-                        p.sendMessage(EconomyAPI.getI18n().tr(p.getLanguageCode(), "givemoney-money-given", EconomyAPI.MONEY_FORMAT.format(amount), plugin.getMonetaryUnit()));
-                    }
-                    return true;
+                return false;
             }
         } catch (NumberFormatException e) {
             sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "givemoney-must-be-number"));
+            return false;
         }
+
+        final String finalPlayer = player;
+        final double finalAmount = amount;
+        final String currencyName = args.length >= 3 ? args[2] : MAIN_CONFIG.getDefaultCurrency().getName();
+
+        EconomyAPI.getAsyncOperator().addMoney(player, amount, currencyName).thenAccept(result -> {
+            switch (result) {
+                case EconomyAPI.RET_INVALID:
+                    sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "reached-max", EconomyAPI.MONEY_FORMAT.format(finalAmount), plugin.getMonetaryUnit()));
+                    break;
+                case EconomyAPI.RET_NO_ACCOUNT:
+                    sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "player-never-connected", finalPlayer));
+                    break;
+                case EconomyAPI.RET_SUCCESS:
+                    sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "givemoney-gave-money", finalPlayer, EconomyAPI.MONEY_FORMAT.format(finalAmount), plugin.getMonetaryUnit()));
+                    if (p != null) {
+                        p.sendMessage(EconomyAPI.getI18n().tr(p.getLanguageCode(), "givemoney-money-given", EconomyAPI.MONEY_FORMAT.format(finalAmount), plugin.getMonetaryUnit()));
+                    }
+                    break;
+            }
+        });
         return true;
     }
 

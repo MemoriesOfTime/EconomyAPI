@@ -68,18 +68,19 @@ public class MyMoneyCommand extends PluginCommand<EconomyAPI> {
             target = args[0];
         }
 
-        double money = this.plugin.myMoney(target);
-        if (money == -1) {
-            sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "player-never-connected", target));
-            return true;
-        }
+        EconomyAPI.getAsyncOperator().myMoney(target).thenAccept(money -> {
+            if (money == -1) {
+                sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "player-never-connected", target));
+                return;
+            }
 
-        String moneyString = EconomyAPI.MONEY_FORMAT.format(money);
-        if (sender.getName().equals(target)) {
-            sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "mymoney-mymoney", moneyString, plugin.getMonetaryUnit()));
-        } else {
-            sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "seemoney-seemoney", target, moneyString, plugin.getMonetaryUnit()));
-        }
+            String moneyString = EconomyAPI.MONEY_FORMAT.format(money);
+            if (sender.getName().equals(target)) {
+                sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "mymoney-mymoney", moneyString, plugin.getMonetaryUnit()));
+            } else {
+                sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "seemoney-seemoney", target, moneyString, plugin.getMonetaryUnit()));
+            }
+        });
         return true;
     }
 }

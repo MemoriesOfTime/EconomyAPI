@@ -63,7 +63,7 @@ public class TakeMoneyCommand extends PluginCommand<EconomyAPI> {
 
         if (args.length < 2) {
             sender.sendMessage(new TranslationContainer("commands.generic.usage", this.getUsage()));
-            return true;
+            return false;
         }
         String player = args[0];
 
@@ -71,38 +71,43 @@ public class TakeMoneyCommand extends PluginCommand<EconomyAPI> {
         if (p != null) {
             player = p.getName();
         }
-        try {
-            double amount = Double.parseDouble(args[1]);
-            if (amount < 0 || !Double.isFinite(amount)) {
-                sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "takemoney-invalid-number"));
-                return true;
-            }
 
-            String currencyName = MAIN_CONFIG.getDefaultCurrency().getName();
-            if (args.length >= 3) {
-                currencyName = args[2];
-            }
-            int result = this.plugin.reduceMoney(player, amount, currencyName);
-            switch (result) {
-                case EconomyAPI.RET_INVALID:
-                    sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "takemoney-player-lack-of-money", player, EconomyAPI.MONEY_FORMAT.format(amount), EconomyAPI.MONEY_FORMAT.format(this.plugin.myMoney(player, currencyName)), plugin.getMonetaryUnit(currencyName)));
-                    return true;
-                case EconomyAPI.RET_NO_ACCOUNT:
-                    sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "player-never-connected", player));
-                    return true;
-                case EconomyAPI.RET_CANCELLED:
-                    sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "takemoney-failed", player));
-                    return true;
-                case EconomyAPI.RET_SUCCESS:
-                    sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "takemoney-took-money", player, EconomyAPI.MONEY_FORMAT.format(amount), plugin.getMonetaryUnit(currencyName)));
-                    if (p != null) {
-                        p.sendMessage(EconomyAPI.getI18n().tr(p.getLanguageCode(), "takemoney-money-taken", EconomyAPI.MONEY_FORMAT.format(amount), plugin.getMonetaryUnit(currencyName)));
-                    }
-                    return true;
+        double amount = 0;
+        try {
+            amount = Double.parseDouble(args[1]);
+            if (amount <= 0 || !Double.isFinite(amount)) {
+                sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "takemoney-invalid-number"));
+                return false;
             }
         } catch (NumberFormatException e) {
             sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "takemoney-must-be-number"));
+            return false;
         }
+
+
+        final String finalPlayer = player;
+        final double finalAmount = amount;
+        final String currencyName = args.length >= 3 ? args[2] : MAIN_CONFIG.getDefaultCurrency().getName();
+
+        EconomyAPI.getAsyncOperator().reduceMoney(player, amount, currencyName).thenAccept(result -> {
+            switch (result) {
+                case EconomyAPI.RET_INVALID:
+                    sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "takemoney-player-lack-of-money", finalPlayer, EconomyAPI.MONEY_FORMAT.format(finalAmount), EconomyAPI.MONEY_FORMAT.format(this.plugin.myMoney(finalPlayer, currencyName)), plugin.getMonetaryUnit(currencyName)));
+                    break;
+                case EconomyAPI.RET_NO_ACCOUNT:
+                    sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "player-never-connected", finalPlayer));
+                    break;
+                case EconomyAPI.RET_CANCELLED:
+                    sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "takemoney-failed", finalPlayer));
+                    break;
+                case EconomyAPI.RET_SUCCESS:
+                    sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "takemoney-took-money", finalPlayer, EconomyAPI.MONEY_FORMAT.format(finalAmount), plugin.getMonetaryUnit(currencyName)));
+                    if (p != null) {
+                        p.sendMessage(EconomyAPI.getI18n().tr(p.getLanguageCode(), "takemoney-money-taken", EconomyAPI.MONEY_FORMAT.format(finalAmount), plugin.getMonetaryUnit(currencyName)));
+                    }
+                    break;
+            }
+        });
         return true;
     }
 
