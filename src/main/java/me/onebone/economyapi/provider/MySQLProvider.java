@@ -1,6 +1,7 @@
 package me.onebone.economyapi.provider;
 
 import cn.nukkit.Server;
+import cn.nukkit.scheduler.AsyncTask;
 import cn.nukkit.utils.ConfigSection;
 import com.smallaswater.easysqlx.common.data.SqlData;
 import com.smallaswater.easysqlx.common.data.SqlDataList;
@@ -41,25 +42,29 @@ public class MySQLProvider implements Provider {
         String database = mysqlSection.getString("database", "economy");
         String username = mysqlSection.getString("username", "root");
         String password = mysqlSection.getString("password", "root123456");
-        MySQLProvider.initTablePrefix(mysqlSection.getString("table-prefix", "v1_"));
-        try {
-            MySQLProvider.manager = new SqlManager(EconomyAPI.getInstance(), new UserData(
-                    username, password, host, port, database
-            ));
-        } catch (MySqlLoginException e) {
-            EconomyAPI.getInstance().getLogger().error("MySQL connection failed.", e);
-            Server.getInstance().getPluginManager().disablePlugin(EconomyAPI.getInstance());
-            return;
-        }
+        String tablePrefix = mysqlSection.getString("table-prefix", "v1_");
+        MySQLProvider.initTablePrefix(tablePrefix);
 
-        MAIN_CONFIG.getCurrencyList().forEach(currencyName -> { // 初始化 sql 时创建表单
-            MySQLProvider.manager.createTable(
-                    TABLE_NAME_PREFIX + currencyName,
-                    new TableType("player", DataType.getUUID(), true),
-                    new TableType("money", DataType.getBIGINT(), false)
-            );
-        });
-        EconomyAPI.getInstance().getLogger().info("MySQL initialized!");
+        Server.getInstance().getScheduler().scheduleTask(EconomyAPI.getInstance(), () -> {
+            try {
+                SqlManager manager = new SqlManager(EconomyAPI.getInstance(), new UserData(
+                        username, password, host, port, database
+                ));
+                MySQLProvider.manager = manager;
+
+                MAIN_CONFIG.getCurrencyList().forEach(currencyName -> {
+                    manager.createTable(
+                            TABLE_NAME_PREFIX + currencyName,
+                            new TableType("player", DataType.getUUID(), true),
+                            new TableType("money", DataType.getBIGINT(), false)
+                    );
+                });
+                EconomyAPI.getInstance().getLogger().info("MySQL initialized!");
+            } catch (MySqlLoginException e) {
+                EconomyAPI.getInstance().getLogger().error("MySQL connection failed.", e);
+                Server.getInstance().getPluginManager().disablePlugin(EconomyAPI.getInstance());
+            }
+        }, true);
     }
 
     @Override

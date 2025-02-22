@@ -81,12 +81,9 @@ public class TopMoneyCommand extends PluginCommand<EconomyAPI> {
 
         try {
             int arg = args.length > 0 ? Integer.parseInt(args[0]) : 1;
-            String currencyName = MAIN_CONFIG.getDefaultCurrency().getName();
-            if (args.length >= 2) {
-                currencyName = args[1];
-            }
-            final LinkedHashMap<String, Double> money = new LinkedHashMap<>(plugin.getAllMoney(currencyName));
+            final String currencyName = args.length >= 2 ? args[1] : MAIN_CONFIG.getDefaultCurrency().getName();
             sender.getServer().getScheduler().scheduleTask(EconomyAPI.getInstance(), () -> {
+                final LinkedHashMap<String, Double> money = new LinkedHashMap<>(plugin.getAllMoney(currencyName));
                 int page = args.length > 0 ? Math.max(1, Math.min(arg, money.size())) : 1;
                 List<String> list = new LinkedList<>(money.keySet());
                 list.sort((s1, s2) -> Double.compare(money.get(s2), money.get(s1)));
