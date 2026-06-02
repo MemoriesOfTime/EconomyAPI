@@ -12,6 +12,10 @@ import com.smallaswater.easysqlx.mysql.utils.UserData;
 import me.onebone.economyapi.EconomyAPI;
 
 import java.io.File;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.LinkedHashMap;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -27,8 +31,21 @@ public class MySQLProvider implements Provider {
         MySQLProvider.TABLE_NAME_PREFIX = prefix;
     }
 
+    static void useManagerForTesting(SqlManager manager, String tableNamePrefix) {
+        MySQLProvider.manager = manager;
+        MySQLProvider.TABLE_NAME_PREFIX = tableNamePrefix;
+    }
+
     private static boolean isReady() {
         return MySQLProvider.manager != null;
+    }
+
+    private static String quoteTableName(String tableName) {
+        return "`" + tableName.trim().replace("`", "``") + "`";
+    }
+
+    private static long toCents(double amount) {
+        return Math.round(amount * 100);
     }
 
     @Override
@@ -140,7 +157,7 @@ public class MySQLProvider implements Provider {
         try {
             if (!isReady()) return false;
             if (!MAIN_CONFIG.getCurrencyList().contains(currencyName)) return false;
-            long money = (long) (defaultMoney * 100);
+            long money = toCents(defaultMoney);
             if (!accountExists(currencyName, id)) {
                 SqlData sqlData = new SqlData("player", id).put("money", money);
                 return MySQLProvider.manager.insertData(TABLE_NAME_PREFIX + currencyName, sqlData);
@@ -162,7 +179,7 @@ public class MySQLProvider implements Provider {
         try {
             if (!isReady()) return false;
             if (!MAIN_CONFIG.getCurrencyList().contains(currencyName)) return false;
-            long money = (long) (amount * 100);
+            long money = toCents(amount);
             return MySQLProvider.manager.setData(TABLE_NAME_PREFIX + currencyName, new SqlData("money", money), new SqlData("player", id));
         } finally {
             lock.writeLock().unlock();
@@ -180,9 +197,9 @@ public class MySQLProvider implements Provider {
         try {
             if (!isReady()) return false;
             if (!MAIN_CONFIG.getCurrencyList().contains(currencyName)) return false;
-            double current = getMoney(currencyName, id);
-            if (current == -1) return false;
-            long money = (long) ((current + amount) * 100);
+            Long current = getMoneyCents(currencyName, id);
+            if (current == null) return false;
+            long money = current + toCents(amount);
             return MySQLProvider.manager.setData(TABLE_NAME_PREFIX + currencyName, new SqlData("money", money), new SqlData("player", id));
         } finally {
             lock.writeLock().unlock();
@@ -200,9 +217,9 @@ public class MySQLProvider implements Provider {
         try {
             if (!isReady()) return false;
             if (!MAIN_CONFIG.getCurrencyList().contains(currencyName)) return false;
-            double current = getMoney(currencyName, id);
-            if (current == -1) return false;
-            long money = (long) ((current - amount) * 100);
+            Long current = getMoneyCents(currencyName, id);
+            if (current == null) return false;
+            long money = current - toCents(amount);
             return MySQLProvider.manager.setData(TABLE_NAME_PREFIX + currencyName, new SqlData("money", money), new SqlData("player", id));
         } finally {
             lock.writeLock().unlock();
@@ -218,11 +235,8 @@ public class MySQLProvider implements Provider {
     public double getMoney(String currencyName, String id) {
         lock.readLock().lock();
         try {
-            if (!isReady()) return -1;
-            if (!MAIN_CONFIG.getCurrencyList().contains(currencyName)) return -1;
-            SqlDataList<SqlData> sqlDataList = MySQLProvider.manager.getData(TABLE_NAME_PREFIX + currencyName, "money", new SqlData("player", id));
-            if (sqlDataList.isEmpty()) return -1;
-            return sqlDataList.get(0).getLong("money") / 100.0;
+            Long money = getMoneyCents(currencyName, id);
+            return money == null ? -1 : money / 100.0;
         } finally {
             lock.readLock().unlock();
         }
@@ -279,7 +293,7 @@ public class MySQLProvider implements Provider {
             if (!MAIN_CONFIG.getCurrencyList().contains(currencyName)) return RET_NO_ACCOUNT;
             if (!accountExists(currencyName, id)) return RET_NO_ACCOUNT;
             if (amount > maxMoney) return RET_INVALID;
-            long money = (long) (amount * 100);
+            long money = toCents(amount);
             MySQLProvider.manager.setData(TABLE_NAME_PREFIX + currencyName, new SqlData("money", money), new SqlData("player", id));
             return RET_SUCCESS;
         } finally {
@@ -293,10 +307,12 @@ public class MySQLProvider implements Provider {
         try {
             if (!isReady()) return RET_NO_ACCOUNT;
             if (!MAIN_CONFIG.getCurrencyList().contains(currencyName)) return RET_NO_ACCOUNT;
-            double current = getMoney(currencyName, id);
-            if (current == -1) return RET_NO_ACCOUNT;
-            if (current + amount > maxMoney) return RET_INVALID;
-            long money = (long) ((current + amount) * 100);
+            Long current = getMoneyCents(currencyName, id);
+            if (current == null) return RET_NO_ACCOUNT;
+            long amountCents = toCents(amount);
+            long maxMoneyCents = toCents(maxMoney);
+            long money = current + amountCents;
+            if (money < current || money > maxMoneyCents) return RET_INVALID;
             MySQLProvider.manager.setData(TABLE_NAME_PREFIX + currencyName, new SqlData("money", money), new SqlData("player", id));
             return RET_SUCCESS;
         } finally {
@@ -310,14 +326,101 @@ public class MySQLProvider implements Provider {
         try {
             if (!isReady()) return RET_NO_ACCOUNT;
             if (!MAIN_CONFIG.getCurrencyList().contains(currencyName)) return RET_NO_ACCOUNT;
-            double current = getMoney(currencyName, id);
-            if (current == -1) return RET_NO_ACCOUNT;
-            if (current - amount < 0) return RET_INVALID;
-            long money = (long) ((current - amount) * 100);
+            Long current = getMoneyCents(currencyName, id);
+            if (current == null) return RET_NO_ACCOUNT;
+            long amountCents = toCents(amount);
+            if (current - amountCents < 0) return RET_INVALID;
+            long money = current - amountCents;
             MySQLProvider.manager.setData(TABLE_NAME_PREFIX + currencyName, new SqlData("money", money), new SqlData("player", id));
             return RET_SUCCESS;
         } finally {
             lock.writeLock().unlock();
+        }
+    }
+
+    @Override
+    public int transferMoneyChecked(String currencyName, String fromId, String toId, double amount, double maxMoney) {
+        lock.writeLock().lock();
+        try {
+            if (!Double.isFinite(amount) || amount < 0) return RET_INVALID;
+            if (fromId.equals(toId)) return RET_INVALID;
+            if (!isReady()) return RET_NO_ACCOUNT;
+            if (!MAIN_CONFIG.getCurrencyList().contains(currencyName)) return RET_NO_ACCOUNT;
+            long amountCents = toCents(amount);
+            long maxMoneyCents = toCents(maxMoney);
+            String tableName = quoteTableName(TABLE_NAME_PREFIX + currencyName);
+            try (Connection connection = MySQLProvider.manager.getConnection()) {
+                connection.setAutoCommit(false);
+                try {
+                    String firstLockId = fromId.compareTo(toId) <= 0 ? fromId : toId;
+                    String secondLockId = firstLockId.equals(fromId) ? toId : fromId;
+
+                    Long firstLockMoney = getMoneyForUpdate(connection, tableName, firstLockId);
+                    Long secondLockMoney = getMoneyForUpdate(connection, tableName, secondLockId);
+                    Long fromMoney = fromId.equals(firstLockId) ? firstLockMoney : secondLockMoney;
+                    Long toMoney = toId.equals(firstLockId) ? firstLockMoney : secondLockMoney;
+                    if (fromMoney == null || toMoney == null) {
+                        connection.rollback();
+                        return RET_NO_ACCOUNT;
+                    }
+
+                    long newFromMoney = fromMoney - amountCents;
+                    if (newFromMoney < 0) {
+                        connection.rollback();
+                        return RET_INVALID;
+                    }
+
+                    long newToMoney = toMoney + amountCents;
+                    if (newToMoney < toMoney || newToMoney > maxMoneyCents) {
+                        connection.rollback();
+                        return RET_INVALID;
+                    }
+
+                    updateMoney(connection, tableName, fromId, newFromMoney);
+                    updateMoney(connection, tableName, toId, newToMoney);
+                    connection.commit();
+                    return RET_SUCCESS;
+                } catch (SQLException e) {
+                    connection.rollback();
+                    throw e;
+                } finally {
+                    connection.setAutoCommit(true);
+                }
+            } catch (SQLException e) {
+                throw new RuntimeException("Failed to transfer money in MySQL provider", e);
+            }
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
+    private Long getMoneyCents(String currencyName, String id) {
+        if (!isReady()) return null;
+        if (!MAIN_CONFIG.getCurrencyList().contains(currencyName)) return null;
+        SqlDataList<SqlData> sqlDataList = MySQLProvider.manager.getData(TABLE_NAME_PREFIX + currencyName, "money", new SqlData("player", id));
+        if (sqlDataList.isEmpty()) return null;
+        return sqlDataList.get(0).getLong("money");
+    }
+
+    private Long getMoneyForUpdate(Connection connection, String tableName, String playerId) throws SQLException {
+        String sql = "SELECT money FROM " + tableName + " WHERE player = ? FOR UPDATE";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, playerId);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (!resultSet.next()) {
+                    return null;
+                }
+                return resultSet.getLong("money");
+            }
+        }
+    }
+
+    private void updateMoney(Connection connection, String tableName, String playerId, long money) throws SQLException {
+        String sql = "UPDATE " + tableName + " SET money = ? WHERE player = ?";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setLong(1, money);
+            statement.setString(2, playerId);
+            statement.executeUpdate();
         }
     }
 }

@@ -89,4 +89,32 @@ public interface Provider {
         reduceMoney(currencyName, id, amount);
         return RET_SUCCESS;
     }
+
+    /**
+     * 在同一临界区内完成扣款与收款，避免转账过程中出现中间态。
+     * <p>Provider 实现应覆写此方法并保证：
+     * 检查转出账户 + 检查转入账户 + 校验余额/上限 + 写回两端余额
+     * 在一次原子操作中完成。</p>
+     * <p>默认实现仅用于兼容旧的第三方 Provider，不保证原子性。</p>
+     */
+    default int transferMoneyChecked(String currencyName, String fromId, String toId, double amount, double maxMoney) {
+        if (!Double.isFinite(amount) || amount < 0) return RET_INVALID;
+        if (fromId.equals(toId)) return RET_INVALID;
+
+        double fromMoney = getMoney(currencyName, fromId);
+        if (fromMoney == -1) return RET_NO_ACCOUNT;
+        double toMoney = getMoney(currencyName, toId);
+        if (toMoney == -1) return RET_NO_ACCOUNT;
+        if (fromMoney - amount < 0) return RET_INVALID;
+        if (toMoney + amount > maxMoney) return RET_INVALID;
+
+        if (!reduceMoney(currencyName, fromId, amount)) return RET_NO_ACCOUNT;
+        if (!addMoney(currencyName, toId, amount)) {
+            if (!addMoney(currencyName, fromId, amount)) {
+                throw new IllegalStateException("Failed to roll back transfer from " + fromId + " to " + toId + " in provider " + getName());
+            }
+            return RET_NO_ACCOUNT;
+        }
+        return RET_SUCCESS;
+    }
 }

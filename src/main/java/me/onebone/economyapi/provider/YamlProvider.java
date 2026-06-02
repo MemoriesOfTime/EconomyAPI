@@ -276,4 +276,28 @@ public class YamlProvider implements Provider {
             lock.writeLock().unlock();
         }
     }
+
+    @Override
+    public int transferMoneyChecked(String currencyName, String fromId, String toId, double amount, double maxMoney) {
+        lock.writeLock().lock();
+        try {
+            if (!Double.isFinite(amount) || amount < 0) return RET_INVALID;
+            if (fromId.equals(toId)) return RET_INVALID;
+            if (!currenciesData.containsKey(currencyName)) return RET_NO_ACCOUNT;
+            Config data = currenciesData.get(currencyName);
+            if (!data.exists("money." + fromId) || !data.exists("money." + toId)) return RET_NO_ACCOUNT;
+
+            double fromMoney = data.getDouble("money." + fromId);
+            if (fromMoney - amount < 0) return RET_INVALID;
+
+            double toMoney = data.getDouble("money." + toId);
+            if (toMoney + amount > maxMoney) return RET_INVALID;
+
+            data.set("money." + fromId, fromMoney - amount);
+            data.set("money." + toId, toMoney + amount);
+            return RET_SUCCESS;
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
 }

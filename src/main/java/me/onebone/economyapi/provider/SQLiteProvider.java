@@ -4,6 +4,10 @@ import com.smallaswater.easysqlx.sqlite.SQLiteHelper;
 import com.smallaswater.easysqlx.sqlite.SQLiteHelper.DBTable;
 
 import java.io.File;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.concurrent.ConcurrentHashMap;
@@ -20,9 +24,9 @@ public class SQLiteProvider implements Provider {
     private static final String COLUMN_ID = "id";
     private static final String COLUMN_PLAYER = "player";
     private static final String COLUMN_MONEY = "money";
-    private static final String COLUMN_CURRENCY = "currency"; // 新增 currency 列
+    private static final String COLUMN_CURRENCY = "currency";
     private SQLiteHelper sqLiteHelper;
-    private final ConcurrentHashMap<String, MoneyData> cache = new ConcurrentHashMap<>(); // Key 修改为 currencyName:playerName
+    private final ConcurrentHashMap<String, MoneyData> cache = new ConcurrentHashMap<>();
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
     @Override
@@ -118,7 +122,8 @@ public class SQLiteProvider implements Provider {
             MoneyData values = new MoneyData(id, defaultMoney);
             values.setCurrency(currencyName); // 设置 currencyName
             this.sqLiteHelper.add(TABLE_NAME, values);
-            this.cache.put(getCacheKey(currencyName, id), values); // 添加到缓存
+            MoneyData savedData = getMoneyDataFromStorage(currencyName, id);
+            this.cache.put(getCacheKey(currencyName, id), savedData == null ? values : savedData); // 添加到缓存
             return true;
         } finally {
             lock.writeLock().unlock();
@@ -286,6 +291,83 @@ public class SQLiteProvider implements Provider {
         }
     }
 
+    @Override
+    public int transferMoneyChecked(String currencyName, String fromId, String toId, double amount, double maxMoney) {
+        lock.writeLock().lock();
+        try {
+            if (!Double.isFinite(amount) || amount < 0) return RET_INVALID;
+            if (fromId.equals(toId)) return RET_INVALID;
+            try (Connection connection = openTransactionConnection()) {
+                connection.setAutoCommit(false);
+                try {
+                    MoneyRecord fromRecord = getMoneyRecord(connection, currencyName, fromId);
+                    MoneyRecord toRecord = getMoneyRecord(connection, currencyName, toId);
+                    if (fromRecord == null || toRecord == null) {
+                        connection.rollback();
+                        return RET_NO_ACCOUNT;
+                    }
+
+                    double newFromMoney = fromRecord.money() - amount;
+                    if (newFromMoney < 0) {
+                        connection.rollback();
+                        return RET_INVALID;
+                    }
+
+                    double newToMoney = toRecord.money() + amount;
+                    if (newToMoney > maxMoney) {
+                        connection.rollback();
+                        return RET_INVALID;
+                    }
+
+                    updateMoney(connection, fromRecord.id(), newFromMoney);
+                    updateMoney(connection, toRecord.id(), newToMoney);
+                    connection.commit();
+
+                    this.cache.put(getCacheKey(currencyName, fromId), new MoneyData(fromRecord.id(), fromId, newFromMoney, currencyName));
+                    this.cache.put(getCacheKey(currencyName, toId), new MoneyData(toRecord.id(), toId, newToMoney, currencyName));
+                    return RET_SUCCESS;
+                } catch (SQLException e) {
+                    connection.rollback();
+                    throw e;
+                } finally {
+                    connection.setAutoCommit(true);
+                }
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to transfer money in SQLite provider", e);
+            }
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
+    private Connection openTransactionConnection() throws SQLException {
+        return java.sql.DriverManager.getConnection("jdbc:sqlite:" + this.sqLiteHelper.getDbFilePath());
+    }
+
+    private MoneyRecord getMoneyRecord(Connection connection, String currencyName, String playerId) throws SQLException {
+        String sql = "SELECT " + COLUMN_ID + ", " + COLUMN_MONEY + " FROM " + TABLE_NAME
+                + " WHERE " + COLUMN_PLAYER + " = ? AND " + COLUMN_CURRENCY + " = ?";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, playerId);
+            statement.setString(2, currencyName);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (!resultSet.next()) {
+                    return null;
+                }
+                return new MoneyRecord(resultSet.getLong(COLUMN_ID), resultSet.getDouble(COLUMN_MONEY));
+            }
+        }
+    }
+
+    private void updateMoney(Connection connection, long rowId, double money) throws SQLException {
+        String sql = "UPDATE " + TABLE_NAME + " SET " + COLUMN_MONEY + " = ? WHERE " + COLUMN_ID + " = ?";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setDouble(1, money);
+            statement.setLong(2, rowId);
+            statement.executeUpdate();
+        }
+    }
+
     // 内部方法，调用方负责持有锁
     private MoneyData getMoneyData(String currencyName, String id) {
         String cacheKey = getCacheKey(currencyName, id);
@@ -301,6 +383,14 @@ public class SQLiteProvider implements Provider {
         return null;
     }
 
+    private MoneyData getMoneyDataFromStorage(String currencyName, String id) {
+        LinkedList<MoneyData> dataList = this.sqLiteHelper.getDataByString(TABLE_NAME, COLUMN_PLAYER + " = ? AND " + COLUMN_CURRENCY + " = ?", new String[]{id, currencyName}, MoneyData.class);
+        if (dataList.isEmpty()) {
+            return null;
+        }
+        return dataList.getFirst();
+    }
+
     public static class MoneyData {
         public long id;
         public String player;
@@ -314,6 +404,13 @@ public class SQLiteProvider implements Provider {
         public MoneyData(String player, double money) {
             this.player = player;
             this.money = money;
+        }
+
+        public MoneyData(long id, String player, double money, String currency) {
+            this.id = id;
+            this.player = player;
+            this.money = money;
+            this.currency = currency;
         }
 
         public void setId(long id) {
@@ -343,5 +440,8 @@ public class SQLiteProvider implements Provider {
         public void setCurrency(String currency) {
             this.currency = currency;
         }
+    }
+
+    private record MoneyRecord(long id, double money) {
     }
 }

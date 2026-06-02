@@ -21,6 +21,7 @@ package me.onebone.economyapi;
 import cn.nukkit.IPlayer;
 import cn.nukkit.Player;
 import cn.nukkit.Server;
+import cn.nukkit.event.Event;
 import cn.nukkit.event.EventHandler;
 import cn.nukkit.event.EventPriority;
 import cn.nukkit.event.Listener;
@@ -318,7 +319,7 @@ public class EconomyAPI extends PluginBase implements Listener {
     }
 
     public boolean hasAccount(IPlayer player) {
-        return hasAccount(player.getUniqueId());
+        return player != null && hasAccount(player.getUniqueId());
     }
 
     public boolean hasAccount(UUID id) {
@@ -327,6 +328,22 @@ public class EconomyAPI extends PluginBase implements Listener {
 
     public boolean hasAccount(String id) {
         return provider.accountExists(checkAndConvertLegacy(id).map(UUID::toString).map(String::toLowerCase).orElse(id.toLowerCase()));
+    }
+
+    public boolean hasAccount(IPlayer player, String currencyName) {
+        return player != null && hasAccount(player.getUniqueId(), currencyName);
+    }
+
+    public boolean hasAccount(UUID id, String currencyName) {
+        checkAndConvertLegacy(id);
+        return this.provider.accountExists(currencyName, id.toString().toLowerCase());
+    }
+
+    public boolean hasAccount(String id, String currencyName) {
+        return this.provider.accountExists(
+                currencyName,
+                checkAndConvertLegacy(id).map(UUID::toString).map(String::toLowerCase).orElse(id.toLowerCase())
+        );
     }
 
     public String getMonetaryUnit() {
@@ -510,6 +527,82 @@ public class EconomyAPI extends PluginBase implements Listener {
             return this.provider.reduceMoneyChecked(currencyName, id, event.getAmount());
         }
         return RET_CANCELLED;
+    }
+
+    public int transferMoney(Player from, String to, double amount, String currencyName) {
+        return transferMoney(from.getUniqueId(), to, amount, currencyName, false, false);
+    }
+
+    public int transferMoney(Player from, String to, double amount, String currencyName, boolean force) {
+        return transferMoney(from.getUniqueId(), to, amount, currencyName, force, force);
+    }
+
+    public int transferMoney(UUID from, String to, double amount, String currencyName) {
+        return transferMoney(from, to, amount, currencyName, false, false);
+    }
+
+    public int transferMoney(UUID from, String to, double amount, String currencyName, boolean force) {
+        return transferMoney(from, to, amount, currencyName, force, force);
+    }
+
+    public int transferMoney(UUID from, String to, double amount, String currencyName, boolean forceReduce, boolean forceAdd) {
+        return transferMoneyDetailed(from, to, amount, currencyName, forceReduce, forceAdd).result();
+    }
+
+    public TransferResult transferMoneyDetailed(UUID from, String to, double amount, String currencyName, boolean forceReduce, boolean forceAdd) {
+        checkAndConvertLegacy(from);
+        Optional<UUID> toUuid = checkAndConvertLegacy(to);
+        String fromId = from.toString().toLowerCase();
+        String toId = toUuid.map(UUID::toString).map(String::toLowerCase).orElse(to.toLowerCase());
+        return transferMoneyInternal(fromId, toId, amount, currencyName, forceReduce, forceAdd);
+    }
+
+    TransferResult transferMoneyInternal(String fromId, String toId, double amount, String currencyName, boolean forceReduce, boolean forceAdd) {
+        if (fromId.equals(toId) || !Double.isFinite(amount) || amount < 0) {
+            return TransferResult.invalid(amount);
+        }
+
+        ReduceMoneyEvent reduceEvent = new ReduceMoneyEvent(fromId, amount, currencyName);
+        callMoneyEvent(reduceEvent);
+        if (reduceEvent.isCancelled() && !forceReduce) {
+            return TransferResult.cancelled(amount);
+        }
+
+        double transferAmount = reduceEvent.getAmount();
+        if (!Double.isFinite(transferAmount) || transferAmount < 0) {
+            return TransferResult.invalid(amount);
+        }
+
+        AddMoneyEvent addEvent = new AddMoneyEvent(toId, transferAmount, currencyName);
+        callMoneyEvent(addEvent);
+        if (addEvent.isCancelled() && !forceAdd) {
+            return TransferResult.cancelled(transferAmount);
+        }
+
+        double addAmount = addEvent.getAmount();
+        if (!Double.isFinite(addAmount) || addAmount < 0) {
+            return TransferResult.invalid(addAmount);
+        }
+        if (Double.compare(addAmount, transferAmount) != 0) {
+            return TransferResult.invalid(addAmount);
+        }
+
+        int result = this.provider.transferMoneyChecked(currencyName, fromId, toId, transferAmount, getMaxMoney(currencyName));
+        return new TransferResult(result, transferAmount);
+    }
+
+    void callMoneyEvent(Event event) {
+        this.getServer().getPluginManager().callEvent(event);
+    }
+
+    public record TransferResult(int result, double amount) {
+        private static TransferResult invalid(double amount) {
+            return new TransferResult(RET_INVALID, amount);
+        }
+
+        private static TransferResult cancelled(double amount) {
+            return new TransferResult(RET_CANCELLED, amount);
+        }
     }
 
     public boolean createAccount(Player player, double defaultMoney, String currencyName) {

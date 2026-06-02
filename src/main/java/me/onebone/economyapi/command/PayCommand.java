@@ -97,15 +97,15 @@ public class PayCommand extends PluginCommand<EconomyAPI> {
             return false;
         }
 
-        if (!this.plugin.hasAccount(player)) {
-            sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "player-never-connected", player));
+        final String currencyName = args.length >= 3 ? args[2] : MAIN_CONFIG.getDefaultCurrency().getName();
+
+        if (!this.plugin.hasAccount(player, currencyName)) {
+            sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "pay-failed"));
             return false;
         }
 
-        final String currencyName = args.length >= 3 ? args[2] : MAIN_CONFIG.getDefaultCurrency().getName();
-
-        int result = this.plugin.reduceMoney((Player) sender, amount, currencyName);
-        switch (result) {
+        EconomyAPI.TransferResult transferResult = this.plugin.transferMoneyDetailed(((Player) sender).getUniqueId(), player, amount, currencyName, false, true);
+        switch (transferResult.result()) {
             case EconomyAPI.RET_NO_ACCOUNT:
                 sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "player-never-connected", player));
                 break;
@@ -114,11 +114,9 @@ public class PayCommand extends PluginCommand<EconomyAPI> {
                 sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "pay-failed"));
                 break;
             case EconomyAPI.RET_SUCCESS:
-                this.plugin.addMoney(player, amount, currencyName, true);
-
-                sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "pay-success", EconomyAPI.MONEY_FORMAT.format(amount), plugin.getMonetaryUnit(currencyName), player));
+                sender.sendMessage(EconomyAPI.getI18n().tr(langCode, "pay-success", EconomyAPI.MONEY_FORMAT.format(transferResult.amount()), plugin.getMonetaryUnit(currencyName), player));
                 if (p != null) {
-                    p.sendMessage(EconomyAPI.getI18n().tr(p.getLanguageCode(), "money-paid", sender.getName(), EconomyAPI.MONEY_FORMAT.format(amount), plugin.getMonetaryUnit(currencyName)));
+                    p.sendMessage(EconomyAPI.getI18n().tr(p.getLanguageCode(), "money-paid", sender.getName(), EconomyAPI.MONEY_FORMAT.format(transferResult.amount()), plugin.getMonetaryUnit(currencyName)));
                 }
                 break;
         }
