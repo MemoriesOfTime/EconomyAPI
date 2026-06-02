@@ -49,9 +49,10 @@ jobs:
       with:
         timeZone: 8
         format: 'YYYY/MM/DD-HH:mm:ss'
-     # 推送到minebbs    
+    # 推送到minebbs
     - name: Update MineBBS infomation
-      uses: fjogeleit/http-request-action@v1
+      uses: fjogeleit/http-request-action@v2
+      continue-on-error: true
       if: success() && github.event_name == 'push' && github.repository == 'MemoriesOfTime/EconomyAPI' && contains(github.ref_name, 'master')
       with:
         url: 'https://api.minebbs.com/api/openapi/v1/resources/9336/update'
