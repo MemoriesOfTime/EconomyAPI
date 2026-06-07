@@ -51,12 +51,12 @@ public class AsyncOperator {
     }
 
     public CompletableFuture<Double> myMoney(UUID id) {
-        checkAndConvertLegacy(id);
+        EconomyAPI.getInstance().checkAndConvertLegacy(id);
         return myMoneyInternal(id.toString());
     }
 
     public CompletableFuture<Double> myMoney(String id) {
-        Optional<UUID> uuid = checkAndConvertLegacy(id);
+        Optional<UUID> uuid = EconomyAPI.getInstance().checkAndConvertLegacy(id);
         return uuid.map(this::myMoney)
                 .orElseGet(() -> myMoneyInternal(id));
     }
@@ -128,7 +128,7 @@ public class AsyncOperator {
     }
 
     public CompletableFuture<Integer> setMoney(UUID id, double amount, boolean force) {
-        checkAndConvertLegacy(id);
+        EconomyAPI.getInstance().checkAndConvertLegacy(id);
         return setMoneyInternal(id.toString(), amount, force);
     }
 
@@ -137,7 +137,7 @@ public class AsyncOperator {
     }
 
     public CompletableFuture<Integer> setMoney(String id, double amount, boolean force) {
-        Optional<UUID> uuid = checkAndConvertLegacy(id);
+        Optional<UUID> uuid = EconomyAPI.getInstance().checkAndConvertLegacy(id);
         return uuid.map(uuid1 -> setMoney(uuid1, amount, force))
                 .orElseGet(() -> setMoneyInternal(id, amount, force));
     }
@@ -210,7 +210,7 @@ public class AsyncOperator {
     }
 
     public CompletableFuture<Integer> addMoney(UUID id, double amount, boolean force) {
-        checkAndConvertLegacy(id);
+        EconomyAPI.getInstance().checkAndConvertLegacy(id);
         return addMoneyInternal(id.toString(), amount, force);
     }
 
@@ -219,7 +219,7 @@ public class AsyncOperator {
     }
 
     public CompletableFuture<Integer> addMoney(String id, double amount, boolean force) {
-        Optional<UUID> uuid = checkAndConvertLegacy(id);
+        Optional<UUID> uuid = EconomyAPI.getInstance().checkAndConvertLegacy(id);
         return uuid.map(uuid1 -> addMoney(uuid1, amount, force))
                 .orElseGet(() -> addMoneyInternal(id, amount, force));
     }
@@ -296,7 +296,7 @@ public class AsyncOperator {
     }
 
     public CompletableFuture<Integer> reduceMoney(UUID id, double amount, boolean force) {
-        checkAndConvertLegacy(id);
+        EconomyAPI.getInstance().checkAndConvertLegacy(id);
         return reduceMoneyInternal(id.toString(), amount, force);
     }
 
@@ -305,7 +305,7 @@ public class AsyncOperator {
     }
 
     public CompletableFuture<Integer> reduceMoney(String id, double amount, boolean force) {
-        Optional<UUID> uuid = checkAndConvertLegacy(id);
+        Optional<UUID> uuid = EconomyAPI.getInstance().checkAndConvertLegacy(id);
         return uuid.map(uuid1 -> reduceMoney(uuid1, amount, force))
                 .orElseGet(() -> reduceMoneyInternal(id, amount, force));
     }
@@ -331,12 +331,12 @@ public class AsyncOperator {
     }
 
     public CompletableFuture<Double> myMoney(UUID id, String currencyName) {
-        checkAndConvertLegacy(id);
+        EconomyAPI.getInstance().checkAndConvertLegacy(id);
         return myMoneyInternal(id.toString(), currencyName);
     }
 
     public CompletableFuture<Double> myMoney(String id, String currencyName) {
-        Optional<UUID> uuid = checkAndConvertLegacy(id);
+        Optional<UUID> uuid = EconomyAPI.getInstance().checkAndConvertLegacy(id);
         return uuid.map(uuid1 -> myMoney(uuid1, currencyName))
                 .orElseGet(() -> myMoneyInternal(id, currencyName));
     }
@@ -371,7 +371,7 @@ public class AsyncOperator {
     }
 
     public CompletableFuture<Integer> setMoney(UUID id, double amount, String currencyName, boolean force) {
-        checkAndConvertLegacy(id);
+        EconomyAPI.getInstance().checkAndConvertLegacy(id);
         return setMoneyInternal(id.toString(), amount, currencyName, force);
     }
 
@@ -380,7 +380,7 @@ public class AsyncOperator {
     }
 
     public CompletableFuture<Integer> setMoney(String id, double amount, String currencyName, boolean force) {
-        Optional<UUID> uuid = checkAndConvertLegacy(id);
+        Optional<UUID> uuid = EconomyAPI.getInstance().checkAndConvertLegacy(id);
         return uuid.map(uuid1 -> setMoney(uuid1, amount, currencyName, force))
                 .orElseGet(() -> setMoneyInternal(id, amount, currencyName, force));
     }
@@ -416,7 +416,7 @@ public class AsyncOperator {
     }
 
     public CompletableFuture<Integer> addMoney(UUID id, double amount, String currencyName, boolean force) {
-        checkAndConvertLegacy(id);
+        EconomyAPI.getInstance().checkAndConvertLegacy(id);
         return addMoneyInternal(id.toString(), amount, currencyName, force);
     }
 
@@ -425,7 +425,7 @@ public class AsyncOperator {
     }
 
     public CompletableFuture<Integer> addMoney(String id, double amount, String currencyName, boolean force) {
-        Optional<UUID> uuid = checkAndConvertLegacy(id);
+        Optional<UUID> uuid = EconomyAPI.getInstance().checkAndConvertLegacy(id);
         return uuid.map(uuid1 -> addMoney(uuid1, amount, currencyName, force))
                 .orElseGet(() -> addMoneyInternal(id, amount, currencyName, force));
     }
@@ -461,7 +461,7 @@ public class AsyncOperator {
     }
 
     public CompletableFuture<Integer> reduceMoney(UUID id, double amount, String currencyName, boolean force) {
-        checkAndConvertLegacy(id);
+        EconomyAPI.getInstance().checkAndConvertLegacy(id);
         return reduceMoneyInternal(id.toString(), amount, currencyName, force);
     }
 
@@ -470,7 +470,7 @@ public class AsyncOperator {
     }
 
     public CompletableFuture<Integer> reduceMoney(String id, double amount, String currencyName, boolean force) {
-        Optional<UUID> uuid = checkAndConvertLegacy(id);
+        Optional<UUID> uuid = EconomyAPI.getInstance().checkAndConvertLegacy(id);
         return uuid.map(uuid1 -> reduceMoney(uuid1, amount, currencyName, force))
                 .orElseGet(() -> reduceMoneyInternal(id, amount, currencyName, force));
     }
@@ -484,41 +484,4 @@ public class AsyncOperator {
         return future;
     }
 
-    // === other
-
-    private void checkAndConvertLegacy(UUID uuid) {
-        IPlayer player = Server.getInstance().getOfflinePlayer(uuid);
-        if (player != null && player.getName() != null) {
-            checkAndConvertLegacy(uuid, player.getName());
-        }
-    }
-
-    private Optional<UUID> checkAndConvertLegacy(String id) {
-        Optional<UUID> uuid = Server.getInstance().lookupName(id);
-        if (uuid.isEmpty()) {
-            Player onlinePlayer = Server.getInstance().getPlayerExact(id);
-            if (onlinePlayer != null) {
-                uuid = Optional.of(onlinePlayer.getUniqueId());
-            }
-        }
-        uuid.ifPresent(uuid1 -> checkAndConvertLegacy(uuid1, id));
-        return uuid;
-    }
-
-    private void checkAndConvertLegacy(UUID uuid, String name) {
-        name = name.toLowerCase();
-        String uuidStr = uuid.toString().toLowerCase();
-        for (String currencyName : EconomyAPI.MAIN_CONFIG.getCurrencyList()) {
-            if (!EconomyAPI.getInstance().provider.accountExists(currencyName, name)) {
-                continue;
-            }
-            if (EconomyAPI.getInstance().provider.accountExists(currencyName, uuidStr)) {
-                EconomyAPI.getInstance().provider.removeAccount(currencyName, name);
-                continue;
-            }
-            double money = EconomyAPI.getInstance().provider.getMoney(currencyName, name);
-            EconomyAPI.getInstance().provider.createAccount(currencyName, uuidStr, money);
-            EconomyAPI.getInstance().provider.removeAccount(currencyName, name);
-        }
-    }
 }

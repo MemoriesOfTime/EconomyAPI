@@ -157,12 +157,19 @@ public class MySQLProvider implements Provider {
         try {
             if (!isReady()) return false;
             if (!MAIN_CONFIG.getCurrencyList().contains(currencyName)) return false;
+            if (accountExists(currencyName, id)) return false;
             long money = toCents(defaultMoney);
-            if (!accountExists(currencyName, id)) {
-                SqlData sqlData = new SqlData("player", id).put("money", money);
-                return MySQLProvider.manager.insertData(TABLE_NAME_PREFIX + currencyName, sqlData);
+            String tableName = quoteTableName(TABLE_NAME_PREFIX + currencyName);
+            String sql = "INSERT INTO " + tableName + " (player, money) VALUES (?, ?)";
+            try (Connection connection = MySQLProvider.manager.getConnection();
+                 PreparedStatement stmt = connection.prepareStatement(sql)) {
+                stmt.setString(1, id);
+                stmt.setLong(2, money);
+                return stmt.executeUpdate() > 0;
+            } catch (SQLException e) {
+                EconomyAPI.getInstance().getLogger().error("Failed to create account in MySQL", e);
+                return false;
             }
-            return false;
         } finally {
             lock.writeLock().unlock();
         }

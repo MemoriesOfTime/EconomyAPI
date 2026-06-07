@@ -1,5 +1,6 @@
 package me.onebone.economyapi;
 
+import cn.nukkit.IPlayer;
 import cn.nukkit.event.Event;
 import me.onebone.economyapi.event.money.AddMoneyEvent;
 import me.onebone.economyapi.event.money.ReduceMoneyEvent;
@@ -7,6 +8,7 @@ import me.onebone.economyapi.provider.InMemoryProvider;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;
+import java.util.UUID;
 import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -243,6 +245,61 @@ class EconomyAPITransferTest {
 
         assertEquals(10, defaultBalances.get("alice"));
         assertEquals(30, eurBalances.get("alice"));
+    }
+
+    @Test
+    void forcedLegacyMigrationRetriesWhenUuidWasCachedBeforeNameWasKnown() {
+        TestPluginSupport.installMainConfig();
+        InMemoryProvider provider = new InMemoryProvider();
+        TestEconomyAPI api = new TestEconomyAPI(provider, event -> {
+        }, event -> {
+        });
+        UUID uuid = UUID.randomUUID();
+        String uuidId = uuid.toString().toLowerCase();
+        provider.createAccount(USD, "alice", 75);
+        api.migratedPlayers.put(uuid, Boolean.TRUE);
+
+        api.checkAndConvertLegacy(uuid, "Alice", true);
+
+        assertFalse(provider.accountExists(USD, "alice"));
+        assertTrue(provider.accountExists(USD, uuidId));
+        assertEquals(75, provider.getMoney(USD, uuidId));
+    }
+
+    @Test
+    void forcedLegacyMigrationKeepsLegacyBalanceWhenUuidAccountAlreadyExists() {
+        TestPluginSupport.installMainConfig();
+        InMemoryProvider provider = new InMemoryProvider();
+        TestEconomyAPI api = new TestEconomyAPI(provider, event -> {
+        }, event -> {
+        });
+        UUID uuid = UUID.randomUUID();
+        String uuidId = uuid.toString().toLowerCase();
+        provider.createAccount(USD, "alice", 75);
+        provider.createAccount(USD, uuidId, 1000);
+        api.migratedPlayers.put(uuid, Boolean.TRUE);
+
+        api.checkAndConvertLegacy(uuid, "Alice", true);
+
+        assertFalse(provider.accountExists(USD, "alice"));
+        assertEquals(75, provider.getMoney(USD, uuidId));
+    }
+
+    @Test
+    void uuidLegacyCheckDoesNotCacheWhenOfflineNameIsUnknown() {
+        TestEconomyAPI api = new TestEconomyAPI(new InMemoryProvider(), event -> {
+        }, event -> {
+        }) {
+            @Override
+            IPlayer getOfflinePlayer(UUID uuid) {
+                return null;
+            }
+        };
+        UUID uuid = UUID.randomUUID();
+
+        api.checkAndConvertLegacy(uuid);
+
+        assertFalse(api.migratedPlayers.containsKey(uuid));
     }
 
     private InMemoryProvider providerWithAccounts(double aliceMoney, double bobMoney) {

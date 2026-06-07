@@ -26,6 +26,7 @@ import cn.nukkit.event.EventHandler;
 import cn.nukkit.event.EventPriority;
 import cn.nukkit.event.Listener;
 import cn.nukkit.event.player.PlayerJoinEvent;
+import cn.nukkit.event.player.PlayerQuitEvent;
 import cn.nukkit.lang.LangCode;
 import cn.nukkit.lang.PluginI18n;
 import cn.nukkit.lang.PluginI18nManager;
@@ -48,6 +49,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.DecimalFormat;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static me.onebone.economyapi.config.UpgradeConfig.*;
 import static me.onebone.economyapi.config.UpgradeConfig.tryUpgradeSQLiteData;
@@ -66,6 +68,7 @@ public class EconomyAPI extends PluginBase implements Listener {
     protected Provider provider;
     protected final HashMap<String, Class<?>> providerClass = new HashMap<>();
     protected static AsyncOperator asyncOperator = new AsyncOperator();
+    final ConcurrentHashMap<UUID, Boolean> migratedPlayers = new ConcurrentHashMap<>();
 
     static {
         MONEY_FORMAT.setMaximumFractionDigits(2);
@@ -92,7 +95,8 @@ public class EconomyAPI extends PluginBase implements Listener {
     }
 
     public boolean createAccount(Player player, double defaultMoney, boolean force) {
-        return this.createAccount(player.getUniqueId(), defaultMoney, force);
+        checkAndConvertLegacy(player.getUniqueId(), player.getName(), true);
+        return createAccountInternal(player.getUniqueId().toString(), defaultMoney, force);
     }
 
     public boolean createAccount(IPlayer player) {
@@ -104,7 +108,8 @@ public class EconomyAPI extends PluginBase implements Listener {
     }
 
     public boolean createAccount(IPlayer player, double defaultMoney, boolean force) {
-        return this.createAccount(player.getUniqueId(), defaultMoney, force);
+        checkAndConvertLegacy(player.getUniqueId(), player.getName(), true);
+        return createAccountInternal(player.getUniqueId().toString(), defaultMoney, force);
     }
 
     public boolean createAccount(UUID id, double defaultMoney) {
@@ -606,19 +611,21 @@ public class EconomyAPI extends PluginBase implements Listener {
     }
 
     public boolean createAccount(Player player, double defaultMoney, String currencyName) {
-        return this.createAccount(player.getUniqueId(), defaultMoney, currencyName, false);
+        return this.createAccount(player, defaultMoney, currencyName, false);
     }
 
     public boolean createAccount(Player player, double defaultMoney, String currencyName, boolean force) {
-        return this.createAccount(player.getUniqueId(), defaultMoney, currencyName, force);
+        checkAndConvertLegacy(player.getUniqueId(), player.getName(), true);
+        return createAccountInternal(player.getUniqueId().toString(), defaultMoney, currencyName, force);
     }
 
     public boolean createAccount(IPlayer player, double defaultMoney, String currencyName) {
-        return this.createAccount(player.getUniqueId(), defaultMoney, currencyName, false);
+        return this.createAccount(player, defaultMoney, currencyName, false);
     }
 
     public boolean createAccount(IPlayer player, double defaultMoney, String currencyName, boolean force) {
-        return this.createAccount(player.getUniqueId(), defaultMoney, currencyName, force);
+        checkAndConvertLegacy(player.getUniqueId(), player.getName(), true);
+        return createAccountInternal(player.getUniqueId().toString(), defaultMoney, currencyName, force);
     }
 
     public boolean createAccount(UUID id, double defaultMoney, String currencyName) {
@@ -719,6 +726,11 @@ public class EconomyAPI extends PluginBase implements Listener {
         this.createAccount(event.getPlayer());
     }
 
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onQuit(PlayerQuitEvent event) {
+        migratedPlayers.remove(event.getPlayer().getUniqueId());
+    }
+
     @Override
     public void onDisable() {
         this.saveAll();
@@ -789,14 +801,21 @@ public class EconomyAPI extends PluginBase implements Listener {
         return asyncOperator;
     }
 
-    private void checkAndConvertLegacy(UUID uuid) {
-        IPlayer player = getServer().getOfflinePlayer(uuid);
+    void checkAndConvertLegacy(UUID uuid) {
+        if (migratedPlayers.containsKey(uuid)) {
+            return;
+        }
+        IPlayer player = getOfflinePlayer(uuid);
         if (player != null && player.getName() != null) {
             checkAndConvertLegacy(uuid, player.getName());
         }
     }
 
-    private Optional<UUID> checkAndConvertLegacy(String id) {
+    IPlayer getOfflinePlayer(UUID uuid) {
+        return getServer().getOfflinePlayer(uuid);
+    }
+
+    Optional<UUID> checkAndConvertLegacy(String id) {
         Optional<UUID> uuid = getServer().lookupName(id);
         if (uuid.isEmpty()) {
             Player onlinePlayer = getServer().getPlayerExact(id);
@@ -808,21 +827,35 @@ public class EconomyAPI extends PluginBase implements Listener {
         return uuid;
     }
 
-    private void checkAndConvertLegacy(UUID uuid, String name) {
+    void checkAndConvertLegacy(UUID uuid, String name) {
+        checkAndConvertLegacy(uuid, name, false);
+    }
+
+    void checkAndConvertLegacy(UUID uuid, String name, boolean force) {
+        if (!force && migratedPlayers.containsKey(uuid)) {
+            return;
+        }
+        if (name == null) {
+            return;
+        }
         name = name.toLowerCase();
         String uuidStr = uuid.toString().toLowerCase();
         for (String currencyName : MAIN_CONFIG.getCurrencyList()) {
             if (!provider.accountExists(currencyName, name)) {
                 continue;
             }
+            double money = provider.getMoney(currencyName, name);
             if (provider.accountExists(currencyName, uuidStr)) {
-                provider.removeAccount(currencyName, name);
+                if (!force || provider.setMoney(currencyName, uuidStr, money)) {
+                    provider.removeAccount(currencyName, name);
+                }
                 continue;
             }
-            double money = provider.getMoney(currencyName, name);
-            provider.createAccount(currencyName, uuidStr, money);
-            provider.removeAccount(currencyName, name);
+            if (provider.createAccount(currencyName, uuidStr, money)) {
+                provider.removeAccount(currencyName, name);
+            }
         }
+        migratedPlayers.put(uuid, Boolean.TRUE);
     }
 
     private void initServerLangCode() {
